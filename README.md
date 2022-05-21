@@ -1,2 +1,2 @@
 # robot
-LKTECH python drivers
+* LKTECH python drivers for BLDC drives
