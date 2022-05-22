@@ -1,4 +1,5 @@
 import copy, time, serial, math
+import pytest
 from struct import *
 
 
@@ -26,10 +27,13 @@ class Motor():
         self.id          = id
     
     def __read_responce(self, bytes_expect: int):
-        res = bytearray()
-        while (len(res) < bytes_expect):          #wait for bytes. TODO: add timeout
-            for c in ser.read(): 
-                res.append(c)
+        self.serial_port.timeout = 0.1
+        
+        res = ser.read(bytes_expect)
+
+        if (res is None or (len(res) < bytes_expect)): 
+            raise TimeoutError(f"Motor does not responded {bytes_expect} byte(s)")
+
         return res
 
     
@@ -42,7 +46,7 @@ class Motor():
         
         snd = bytearray(pack('<BBBBB', CMD_HEADER, CMD_SET_ZERO, self.id, data_length, header_crc))
         self.serial_port.write(snd)
-        time.sleep(.01)  #give the serial port sometime to receive the data
+        #time.sleep(.01)  #give the serial port sometime to receive the data
         res = self.__read_responce(26)      #wait 26 bytes
 
     def abs_multi_loop_angle_speed(self, angle: float, speed: float):
@@ -62,9 +66,8 @@ class Motor():
         
         self.serial_port.write(snd)
 
-        time.sleep(.01)  #give the serial port sometime to receive the data
+        #time.sleep(.01)  #give the serial port sometime to receive the data
         res = self.__read_responce(13)      #wait 13 bytes
-
 
         return res
 
@@ -84,7 +87,7 @@ class Motor():
         print(" ".join(map(lambda b: format(b, "02x"), snd)))
         self.serial_port.write(snd)
 
-        time.sleep(.01)  #give the serial port sometime to receive the data
+        #time.sleep(.01)  #give the serial port sometime to receive the data
 
         res = self.__read_responce(13)      #wait 13 bytes
 
@@ -122,20 +125,10 @@ class Motor():
         #GET RESPONCE FROM MOTOR
         #TODO add motor ID check
 
-        time.sleep(.01)  #give the serial port sometime to receive the data
+        #time.sleep(.01)  #give the serial port sometime to receive the data
         res = self.__read_responce(14)
-
-        b = bytearray()
-        b.append(res[5])
-        b.append(res[6])
-        b.append(res[7])
-        b.append(res[8])
-        b.append(res[9])
-        b.append(res[10])
-        b.append(res[11])
-        b.append(res[12])
         
-        angle = unpack("HHHH", b)
+        angle = unpack("HHHH", res[5:13])
         
         return angle[0]/100
 
@@ -149,14 +142,16 @@ class Motor():
         assert tolerance        >= 0.01
         assert timeout          >= 0.1
 
-        while (True):
+        while (time.time() - start < timeout):
             cur_angle   = self.get_multi_loop_angle()
             delta       = abs(prev_value-cur_angle)
+            
             if (delta < tolerance): return
-            if (time.time() - start > timeout): raise TimeoutError("Motor does not stopped in defined time")
+
             prev_value = cur_angle
             time.sleep(request_period)
 
+        raise TimeoutError("Motor does not stopped in defined time")
 
 # MAIN
 
@@ -194,6 +189,7 @@ if ser.isOpen():
         motor1.abs_multi_loop_angle_speed(0.0, 30)
         motor2.abs_multi_loop_angle_speed(0.0, 30)
         motor3.abs_multi_loop_angle_speed(0.0, 30)
+
         
         motor1.wait_stop(0.1, 0.1, 15.0)
         motor2.wait_stop(0.1, 0.1, 15.0)
@@ -204,7 +200,10 @@ if ser.isOpen():
         print("ANGLE3:", motor3.get_multi_loop_angle())
         print("---")
         
+        #Moves in cycle
         while True:
+
+            #G0 X6.78 Y
 
             motor1.abs_multi_loop_angle_speed(0.0, 100)
             motor2.abs_multi_loop_angle_speed(0.0, 100)
