@@ -29,10 +29,10 @@ class Motor():
     def __read_responce(self, bytes_expect: int):
         self.serial_port.timeout = 0.1
         
-        res = ser.read(bytes_expect)
+        res = self.serial_port.read(bytes_expect)
 
-        if (res is None or (len(res) < bytes_expect)): 
-            raise TimeoutError(f"Motor does not responded {bytes_expect} byte(s)")
+        if (res is None or (len(res) != bytes_expect)): 
+            raise TimeoutError(f"Motor does not responded {bytes_expect} byte(s), result is '{res}'")
 
         return res
 
@@ -153,92 +153,80 @@ class Motor():
 
         raise TimeoutError("Motor does not stopped in defined time")
 
+
+class Robot():
+    __axes = list()
+
+    def __init__(self) -> None:
+        pass
+
 # MAIN
-
-try:
-    ser = serial.Serial(
-        port        =   '/dev/ttyUSB0',
-        baudrate    =   115200,
-        parity      =   serial.PARITY_NONE,
-        stopbits    =   serial.STOPBITS_ONE,
-        bytesize    =   serial.EIGHTBITS,
-        #timeout=1
-    )
-except Exception as e:
-    print ("error open serial port: " + str(e))
-    exit()
-
-if ser.isOpen():
+def main():
     try:
-        ser.flushInput() #flush input buffer, discarding all its contents
-        ser.flushOutput()#flush output buffer, aborting current output
+        ser = serial.Serial(
+            port        =   '/dev/ttyUSB0',
+            baudrate    =   115200,
+            parity      =   serial.PARITY_NONE,
+            stopbits    =   serial.STOPBITS_ONE,
+            bytesize    =   serial.EIGHTBITS,
+            #timeout=1
+        )
+    except Exception as e:
+        print ("error open serial port: " + str(e))
+        exit()
 
-        
-        motor1 = Motor(0x01, ser)
-        motor2 = Motor(0x02, ser)
-        motor3 = Motor(0x03, ser)
+    if ser.isOpen():
+        try:
+            ser.flushInput()    #flush input buffer, discarding all its contents
+            ser.flushOutput()   #flush output buffer, aborting current output
 
-        #save zero positions for axes
-        #motor1.set_zero_cur_position()
-        #motor2.set_zero_cur_position()
-        #motor3.set_zero_cur_position()
-        #exit()
+            
+            motor1 = Motor(0x01, ser)
+            motor2 = Motor(0x02, ser)
+            motor3 = Motor(0x03, ser)
 
 
-        #GO ZERO pos
-        motor1.abs_multi_loop_angle_speed(0.0, 30)
-        motor2.abs_multi_loop_angle_speed(0.0, 30)
-        motor3.abs_multi_loop_angle_speed(0.0, 30)
 
-        
-        motor1.wait_stop(0.1, 0.1, 15.0)
-        motor2.wait_stop(0.1, 0.1, 15.0)
-        motor3.wait_stop(0.1, 0.1, 15.0)
+            #GO ZERO pos
+            #motor1.abs_multi_loop_angle_speed(0.0, 10)
+            #motor2.abs_multi_loop_angle_speed(0.0, 10)
+            #motor3.abs_multi_loop_angle_speed(0.0, 30)
 
-        print("ANGLE1:", motor1.get_multi_loop_angle())
-        print("ANGLE2:", motor2.get_multi_loop_angle())
-        print("ANGLE3:", motor3.get_multi_loop_angle())
-        print("---")
-        
-        #Moves in cycle
-        while True:
-
-            #G0 X6.78 Y
-
-            motor1.abs_multi_loop_angle_speed(0.0, 100)
-            motor2.abs_multi_loop_angle_speed(0.0, 100)
-            motor3.abs_multi_loop_angle_speed(0.0, 100)
+            motor1.abs_multi_loop_angle_speed(0, 10)
+            motor2.abs_multi_loop_angle_speed(0, 10)
+            motor3.abs_multi_loop_angle_speed(0, 30)
 
             motor1.wait_stop(0.1, 0.1, 15.0)
             motor2.wait_stop(0.1, 0.1, 15.0)
             motor3.wait_stop(0.1, 0.1, 15.0)
 
-            time.sleep(1)
-            
-            motor1.abs_multi_loop_angle_speed(20.0, 40)
-            motor2.abs_multi_loop_angle_speed(90.0, 40)
-            motor3.abs_multi_loop_angle_speed(90.0, 110)
-                
-            motor1.wait_stop(0.1, 0.1, 15.0)
-            motor2.wait_stop(0.1, 0.1, 15.0)
-            motor3.wait_stop(0.1, 0.1, 15.0)
-            
-            time.sleep(1)
+            #save zero positions for axes
+            #motor1.set_zero_cur_position()
+            #motor2.set_zero_cur_position()
+            #motor3.set_zero_cur_position()
+                        
+            #Moves in cycle
+            while True:
 
-            motor1.abs_multi_loop_angle_speed(40.0, 80)
-            motor1.wait_stop(0.1, 0.1, 15.0)
+                motor1.abs_multi_loop_angle_speed(0.0, 10)
+                motor2.abs_multi_loop_angle_speed(0.0, 10)
+                motor3.abs_multi_loop_angle_speed(-90.0, 10)
 
+                motor1.wait_stop(0.1, 0.1, 15.0)
+                motor2.wait_stop(0.1, 0.1, 15.0)
+                motor3.wait_stop(0.1, 0.1, 15.0)
 
-            time.sleep(1)
+                time.sleep(1)
 
-            motor3.abs_multi_loop_angle_speed(180.0, 240)
-            motor3.wait_stop(0.1, 0.1, 15.0)
+                print("M1 ", motor1.get_multi_loop_angle(), ", M2", motor2.get_multi_loop_angle(), ", M3 ", motor3.get_multi_loop_angle())
+                time.sleep(1)
 
-            time.sleep(1)
+            ser.close()
+        except Exception as e1:
+            print ("error communicating...: " + str(e1))
 
-        ser.close()
-    except Exception as e1:
-        print ("error communicating...: " + str(e1))
+    else:
+        print("cannot open serial port")
 
-else:
-    print("cannot open serial port")
+if __name__ == '__main__':
+    main()
