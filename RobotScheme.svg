@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="149.705 36.955 337.291 425.431" xmlns="http://www.w3.org/2000/svg" xmlns:bx="https://boxy-svg.com">
+  <defs>
+    <path id="path-0" d="M 249.50488675119163 317.76775956353487 L 279.91787406835607 348.1807468806993" style="fill: none;"/>
+    <bx:grid x="83.789" y="56.533" width="57.601" height="59.62"/>
+    <marker id="marker-0" viewBox="0 0 200 171.402" overflow="visible" orient="auto" refX="45.281" refY="87.834" bx:pinned="true">
+      <title>Arrow</title>
+      <polygon style="stroke: rgb(0, 0, 0);" points="0 170.607 40.581 87.896 0 0 200 88.423"/>
+    </marker>
+  </defs>
+  <g style="" transform="matrix(0.789777, 0, 0, 0.713952, 42.078587, 170.184769)">
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 199.957 199.805 C 199.957 199.805 199.748 179.465 300 178.194 C 400.252 176.923 399.539 199.805 399.539 199.805 L 399.539 299.596 C 399.539 299.596 400.252 320.571 300 321.842 C 199.748 323.113 200.593 299.596 200.593 299.596 L 199.957 199.805 Z"/>
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 200 200 C 200 200 200 221.415 300 222.051 C 400 222.687 400 200 400 200"/>
+  </g>
+  <polygon style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0); stroke-width: 3px;" points="389.12 206.729 300 150.632 300 207.389 388.461 268.106"/>
+  <g style="" transform="matrix(0.009392, -0.789718, 0.7139, 0.00849, 70.945755, 414.374725)">
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 199.957 199.805 C 199.957 199.805 199.748 179.465 300 178.194 C 400.252 176.923 399.539 199.805 399.539 199.805 L 399.539 299.596 C 399.539 299.596 400.252 320.571 300 321.842 C 199.748 323.113 200.593 299.596 200.593 299.596 L 199.957 199.805 Z"/>
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 200 200 C 200 200 200 221.415 300 222.051 C 400 222.687 400 200 400 200"/>
+  </g>
+  <g style="" transform="matrix(0.004017, -0.337734, 0.448132, 0.005329, 254.104187, 337.021759)">
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 7.63435px; fill: rgb(157, 157, 157);" d="M 199.957 199.805 C 199.957 199.805 199.748 179.465 300 178.194 C 400.252 176.923 399.539 199.805 399.539 199.805 L 399.539 299.596 C 399.539 299.596 400.252 320.571 300 321.842 C 199.748 323.113 200.593 299.596 200.593 299.596 L 199.957 199.805 Z"/>
+    <path style="stroke: rgb(0, 0, 0); stroke-width: 7.63435px; fill: rgb(157, 157, 157);" d="M 200 200 C 200 200 200 221.415 300 222.051 C 400 222.687 400 200 400 200"/>
+  </g>
+  <polygon style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0); stroke-width: 3px;" points="220.53 320.453 265.903 319.045 253.154 307.784 210.031 309.661"/>
+  <polygon style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0); stroke-width: 3px;" points="210.631 142.983 221.22 146.597 220.53 318.92 210.031 309.92"/>
+  <polygon style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0); stroke-width: 3px;" points="343.134 229.708 423.168 275.213 421.541 288.132 341.422 243.722"/>
+  <ellipse style="stroke: rgb(0, 0, 0); fill: rgb(99, 99, 99);" cx="282.94" cy="312.313" rx="11.06" ry="3.59"/>
+  <path style="stroke: rgb(0, 0, 0); stroke-width: 1.33003px; fill: none; stroke-dasharray: 4px;" d="M 200 386.872 C 200 386.872 200 371.582 278.978 371.128 C 357.956 370.674 357.956 386.872 357.956 386.872"/>
+  <ellipse style="stroke: rgb(0, 0, 0); stroke-dasharray: 4px; fill: none;" cx="281.813" cy="384.403" rx="11.06" ry="3.59"/>
+  <path d="M 379.89 262.5435 H 492.047 L 492.047 258.419 L 516.107 265.0825 L 492.047 271.746 L 492.047 267.6215 H 379.89 V 262.5435 Z" style="stroke: rgb(0, 0, 0); fill: rgb(255, 255, 0);" transform="matrix(0.003055, -0.999995, 0.999995, 0.003055, 16.332474, 763.546814)" bx:shape="arrow 379.89 258.419 136.217 13.327 5.078 24.06 0 1@dd847229"/>
+  <path d="M 215.047 175.3035 H 361.488 L 361.488 171.3 L 383.901 177.8425 L 361.488 184.385 L 361.488 180.3815 H 215.047 V 175.3035 Z" style="stroke: rgb(0, 0, 0); fill: rgb(255, 255, 0);" bx:shape="arrow 215.047 171.3 168.854 13.085 5.078 22.413 0 1@b4535b48"/>
+  <path d="M 215.047 175.303 H 274.514 L 274.514 171.3 L 296.927 177.842 L 274.514 184.385 L 274.514 180.381 H 215.047 V 175.303 Z" style="stroke: rgb(0, 0, 0); fill: rgb(255, 255, 0);" transform="matrix(0.881675, 0.471857, -0.471857, 0.881675, 287.551544, -19.978825)" bx:shape="arrow 215.047 171.3 81.88 13.085 5.078 22.413 0 1@335fdeaa"/>
+  <text style="fill: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 29px; font-weight: 700; white-space: pre;" x="385.852" y="185.21">Y</text>
+  <text style="font-family: Arial, sans-serif; font-size: 29px; font-weight: 700; white-space: pre;" x="460.331" y="286.301">Z</text>
+  <text style="font-family: Arial, sans-serif; font-size: 29px; font-weight: 700; white-space: pre;" x="292.031" y="276.526">X</text>
+  <text style="font-family: Arial, sans-serif; font-size: 17px; white-space: pre;" transform="matrix(1, 0, 0, 1, 79.763, 153.444321)"><tspan x="292.031" y="276.526">Basement </tspan><tspan x="292.031" dy="1em">​</tspan><tspan>(0, 0 ,0)</tspan><tspan x="292.031" dy="1em">​</tspan></text>
+  <path style="stroke: rgb(0, 0, 0); fill: none;" d="M 281.922 382.478 C 281.922 382.478 287.822 413.726 323.647 414.253 C 359.472 414.78 371.794 435.181 371.794 435.181"/>
+  <text style="fill: rgb(51, 51, 51); font-family: Arial, sans-serif; font-size: 21.2px; font-weight: 700; white-space: pre;" x="185.082" y="55.001">Robot prototype scheme</text>
+  <text style="font-family: Arial, sans-serif; font-size: 18px; white-space: pre;" x="292.48" y="365.65">Motor 1</text>
+  <text style="font-family: Arial, sans-serif; font-size: 18px; white-space: pre;" x="234.359" y="233.121">Motor 2</text>
+  <text style="font-family: Arial, sans-serif; font-size: 18px; white-space: pre;" x="415.575" y="200.703">Motor 3</text>
+  <path style="stroke: rgb(0, 0, 0); fill: none; marker-end: url(#marker-0); stroke-miterlimit: 7; stroke-width: 2px;" d="M 351.365 335.499 C 350.719 348.562 275.786 348.512 275.786 348.512"/>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" x="293.222" y="342.742">alpha</text>
+  <path style="stroke: rgb(0, 0, 0); fill: none; marker-end: url(#marker-0); stroke-miterlimit: 7; stroke-width: 2px;" d="M 441.375 395.701 C 451.78 357.619 441.375 319.683 441.375 319.683" transform="matrix(1, 0, 0, 1, -184.782495, -181.845808)"/>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" x="263.126" y="172.459">fi</text>
+  <path style="stroke: rgb(0, 0, 0); fill: none; marker-end: url(#marker-0); stroke-miterlimit: 7; stroke-width: 2px;" d="M 376.878 204.237 C 385.665 222.615 378.849 241.577 378.849 241.577"/>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(1, 0, 0, 0.990558, 18.34005, 10.653283)" x="404.743" y="232.122">theta</text>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="200.498" y1="314.315" x2="169.77" y2="314.315"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="200.304" y1="385.06" x2="169.576" y2="385.06"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="177.89" y1="177.301" x2="177.89" y2="385.048"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="216.713" y1="177.238" x2="168.818" y2="177.238"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="385.095" y1="234.51" x2="384.944" y2="148.741"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="291.309" y1="176.764" x2="291.309" y2="87.425"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="384.727" y1="155.659" x2="291.719" y2="98.581"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="342.391" y1="236.665" x2="342.391" y2="298.775"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="421.588" y1="280.792" x2="421.588" y2="339.497"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="412.713" y1="195.312" x2="394.946" y2="212.506"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="381.191" y1="230.846" x2="420.164" y2="235.393"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="342.878" y1="295.013" x2="421.74" y2="335.864"/>
+  <text style="font-family: Arial, sans-serif; font-size: 16px; font-weight: 700; text-anchor: middle; white-space: pre;" transform="matrix(1, 0, 0, 1, 33.598625, -5.359126)"><tspan x="390.223" y="368.757">Tooltip</tspan><tspan x="390.223" dy="1em">​</tspan><tspan>coordinates</tspan></text>
+  <path style="stroke: rgb(0, 0, 0); fill: none;" d="M 423.456 282.204 C 423.456 282.204 457.42 311.42 441.716 328.219 C 426.012 345.018 423.091 343.923 423.821 350.862"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="398.939" y1="240.245" x2="398.939" y2="298.95"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="342.45" y1="290.221" x2="398.325" y2="290.221"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="217.011" y1="100.196" x2="217.011" y2="86.051"/>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="291.346" y1="90.322" x2="216.996" y2="90.322"/>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(1, 0, 0, 0.990558, -165.706512, -142.896561)" x="404.743" y="232.122">53.0</text>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(0, -1, 0.990558, 0, -55.292664, 771.740723)" x="404.743" y="232.122">53.0</text>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(0, -1, 0.990558, 0, -56.14901, 676.140869)" x="404.743" y="232.122">64.5</text>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(0.849698, 0.527269, -0.522292, 0.841676, 106.414543, -292.701508)" x="404.743" y="232.122">155.2</text>
+  <line style="fill: rgb(216, 216, 216); stroke: rgb(0, 0, 0);" x1="282.624" y1="290.578" x2="215.274" y2="290.578"/>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(1, 0, 0, 0.990558, -173.588693, 57.359558)" x="404.743" y="232.122">39.5</text>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(1, 0, 0, 0.990558, -47.434029, 58.001389)" x="404.743" y="232.122">33.0</text>
+  <text style="font-family: Arial, sans-serif; font-size: 15.9px; white-space: pre;" transform="matrix(0.887595, 0.460628, -0.456277, 0.879214, 121.582428, -81.410431)" x="404.743" y="232.122">98.0</text>
+</svg>

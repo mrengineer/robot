@@ -17,7 +17,7 @@ print(alpha)
  |
  /-----> Y
 /
-Z
+Z 
 '''
 
 #Tooltip shift matrix
@@ -84,7 +84,7 @@ theta = math.radians(-90)
 print(theta)
 
 motor3_x_shift =  0
-motor3_y_shift = -35
+motor3_y_shift = -33
 motor3_z_shift =  98
 
 #Mechanical shift because of design
