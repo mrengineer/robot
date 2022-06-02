@@ -2,12 +2,13 @@
 <svg viewBox="149.705 36.955 337.291 425.431" xmlns="http://www.w3.org/2000/svg" xmlns:bx="https://boxy-svg.com">
   <defs>
     <path id="path-0" d="M 249.50488675119163 317.76775956353487 L 279.91787406835607 348.1807468806993" style="fill: none;"/>
-    <bx:grid x="83.789" y="56.533" width="57.601" height="59.62"/>
+    <bx:grid x="149.705" y="36.955" width="22.07" height="21.684"/>
     <marker id="marker-0" viewBox="0 0 200 171.402" overflow="visible" orient="auto" refX="45.281" refY="87.834" bx:pinned="true">
       <title>Arrow</title>
       <polygon style="stroke: rgb(0, 0, 0);" points="0 170.607 40.581 87.896 0 0 200 88.423"/>
     </marker>
   </defs>
+  <rect x="149.705" y="36.955" width="342.876" height="433.68" style="fill: rgb(255, 255, 255);"/>
   <g style="" transform="matrix(0.789777, 0, 0, 0.713952, 42.078587, 170.184769)">
     <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 199.957 199.805 C 199.957 199.805 199.748 179.465 300 178.194 C 400.252 176.923 399.539 199.805 399.539 199.805 L 399.539 299.596 C 399.539 299.596 400.252 320.571 300 321.842 C 199.748 323.113 200.593 299.596 200.593 299.596 L 199.957 199.805 Z"/>
     <path style="stroke: rgb(0, 0, 0); stroke-width: 3.99008px; fill: rgb(157, 157, 157);" d="M 200 200 C 200 200 200 221.415 300 222.051 C 400 222.687 400 200 400 200"/>
