@@ -59,7 +59,14 @@ def calc(alpha: float, fi: float, theta: float):
 
     T = np.matmul(Tm1a, Tm1l)   #Linear shift mounted on motor
     T = np.matmul(T, Tm1s)      #Linear shifts because of design
+    
 
+    #print(T)
+    
+    
+    #print("---", R)
+
+    
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     motor2_CW = True
 
@@ -95,6 +102,9 @@ def calc(alpha: float, fi: float, theta: float):
     T = np.matmul(T, Tm2l)   #Linear shift mounted on motor
     T = np.matmul(T, Tm2s)   #Linear shifts because of design
 
+    R = np.dot(T, pnt)
+
+    '''
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     motor3_CW = False
 
@@ -129,6 +139,7 @@ def calc(alpha: float, fi: float, theta: float):
     T = np.matmul(T, Tm3a)   #Linear shift mounted on motor
     T = np.matmul(T, Tm3l)   #Linear shift mounted on motor
     T = np.matmul(T, Tm3s)   #Linear shifts because of design
+    '''
 
     R = np.dot(T, pnt)
     return (round(R[0][0], 2), round(R[1][0], 2), round(R[2][0], 2))
@@ -138,9 +149,13 @@ if __name__ == '__main__':
     os.system('clear')
 
     print(calc(0, 0, 0))
+    print(calc(90, 90, 0))
+    print(calc(-90, 0, 0))
+    '''
     print("\n")
     print(calc(1, 0, 0))
     print("\n")
     print(calc(0, 1, 0))
     print("\n")
     print(calc(0, 0, -90))
+    '''
