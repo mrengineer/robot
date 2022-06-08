@@ -1,7 +1,8 @@
+from array import array
 import copy
 import math
 import os
-import time
+import time, sys
 from struct import *
 from xmlrpc.client import Boolean
 
@@ -47,6 +48,9 @@ class Motor():
         assert tolerance    >= 0.01
         assert serial_port  != None
         assert name         != None
+        
+        #Yep, I know about enums!
+        assert sim_rot_plane.upper() in ["XY", "XZ", "YZ"], "Wrong rotation plane. It must be XY, XZ or YZ"        
 
         self.serial_port    = serial_port
         self.id             = id
@@ -226,7 +230,6 @@ class Motor():
         
         return np.matmul(Ta, Ts)         
 
-      
 class Robot():
     __motors = list()
 
@@ -237,6 +240,7 @@ class Robot():
                     id: hex, serial_port, tolerance: float, 
                     name: str, CW: bool, sim_shifts: list, 
                     sim_rot_plane: str) -> Motor :
+
         new_motor = Motor(id, serial_port, tolerance, name, CW, sim_shifts, sim_rot_plane)
         self.__motors.append(new_motor)
         return new_motor
@@ -273,6 +277,29 @@ class Robot():
         
         return results
 
+    def sim_angles_to_coords(self, angles): # -> list:
+        T = np.identity(4)        
+        result = list()
+        P = list()
+
+        for motor, angle in zip(self.__motors, angles):
+            try:
+                angle   = float(angle)
+                Tm      = motor.T(angle)
+                T       = np.matmul(T, Tm)
+                P.append([0])
+            except ValueError as e:
+                print("Error in robot.sim_angles_to_coords", str(e))
+                exit()
+
+        P.append([1]) # end of creating matrix 1 coloumn. Last one is scale factor
+
+        R = np.dot(T, np.array(P))
+
+        for r in R[:-1]: result.append(round(r[0], 2))
+
+        return result
+        
 
 # MAIN
 def main():
@@ -291,20 +318,28 @@ def main():
 
     robot = Robot()
     
+    m1 = robot.add_motor(0x01, ser, 0.1, "X", False, [112.2, -45, 0],  "YZ")
+    m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
+    m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
+
+    '''
+    print("Set angles as ZERO positions? Y=yes")
+    inp = input().upper()
+    if (inp == "Y"):
+        #save zero positions for axes
+        m1.set_zero_cur_position()
+        m2.set_zero_cur_position()
+        m3.set_zero_cur_position()
+        print("RESET POWER!")
+        exit()
+    '''
 
 
+    alpha = 0
+    fi = 0
+    theta = 0
 
-    m1 = robot.add_motor(0x01, ser, 0.1, "X", True, [117.5, -39.5, 0.0], "YZ")
-    m2 = robot.add_motor(0x02, ser, 0.1, "Y1", True, [0.0,  53.0, 155.2], "XZ")
-    robot.add_motor(0x03, ser, 0.1, "Y2", True, [0.0, -33.0, 98.0],  "XZ")
-
-    T = np.matmul(m1.T(90), m2.T(90))
-    pnt = np.array([[0], [0], [0], [1]])
-    R = np.dot(T, pnt)
-
-    print (round(R[0][0], 2), round(R[1][0], 2), round(R[2][0], 2))
-
-
+    print(robot.sim_angles_to_coords([alpha, fi, theta]))
 
     if ser.isOpen():
         try:
@@ -313,20 +348,52 @@ def main():
             
 
             #GO ZERO pos
-            robot.goto_zero(10)                      
+            #robot.goto_zero(10)                      
             
             #save zero positions for axes
             #motor1.set_zero_cur_position()
             #motor2.set_zero_cur_position()
             #motor3.set_zero_cur_position()
+
+
+            while(True):
+                robot.goto_abs_multi_loop_angles_speeds([alpha, fi, theta],    [30, 30, 40])
+
+                '''
+                print("Set angles as ZERO positions? Y=yes")
+                inp = input().upper()
+                if (inp == "Y"):
+                    #save zero positions for axes
+                    m1.set_zero_cur_position()
+                    m2.set_zero_cur_position()
+                    m3.set_zero_cur_position()
+                    print("RESET POWER!")
+                '''
+                
+
+                print("Enter alpha fi theta angles Ex.: 4.0 -11 4")
+                print(robot.get_multi_loop_angles())
+                inp = input()
+                a, f, t = inp.split(" ")
+
+                alpha   = float(a)
+                fi      = float(f)
+                theta   = float(t)
+
+                print("DEGREES", alpha, fi, theta)
+
+                robot.sim_angles_to_coords([alpha, fi, theta])
+
+            exit()
+            
                         
             #Moves in cycle
             while True:
-                robot.goto_abs_multi_loop_angles_speeds([15, 30, 30],    [40, 60, 60])
+                robot.goto_abs_multi_loop_angles_speeds([15, 30, 30],    [60, 80, 80])
                 time.sleep(1)
-                robot.goto_abs_multi_loop_angles_speeds([0, 0, 0],       [40, 60, 60])
+                robot.goto_abs_multi_loop_angles_speeds([0, 0, 0],       [60, 80, 80])
                 time.sleep(1)
-                robot.goto_abs_multi_loop_angles_speeds([-10, -30, -30], [40, 60, 60])              
+                robot.goto_abs_multi_loop_angles_speeds([-10, -30, -30], [60, 80, 80])              
                 time.sleep(1)
                 print(robot.get_multi_loop_angles())
 
@@ -338,5 +405,5 @@ def main():
         print("cannot open serial port")
 
 if __name__ == '__main__':
-    os.system('clear')
+    #os.system('clear')
     main()

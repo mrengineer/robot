@@ -9,7 +9,7 @@ class TestMotorClass(unittest.TestCase):
 
     def test_set_zero_cur_position(self):
         serial_mock = Mock()
-        motor = Motor(0x01, serial_mock)
+        motor = Motor(0x01, serial_mock, 0.01, "Motor1", True, [0, 0, 0], "YZ")
 
         # Simulate correct respond from motor
         serial_mock.read.return_value = bytearray([0]*26)      
