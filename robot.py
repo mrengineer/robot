@@ -1,6 +1,7 @@
 from array import array
 import copy
 import math
+from multiprocessing.dummy import Array
 import os
 import time, sys
 from struct import *
@@ -21,19 +22,28 @@ CMD_MOTOR_STOP                 = 0x81        #MOTOR stop (but power on coils wil
 CMD_MOTOR_START                = 0x88        #MOTOR operation
 CMD_MOTOR_MODEL                = 0x12        #Read driver and motor model commands
 
+
+
 def time_of_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
         res = function(*args)
-        print(time.perf_counter_ns() - start_time)
+        print((time.perf_counter_ns() - start_time) / 10**6, "millisec")
         return res
     return wrapped
+
+def frange(start, stop, step):
+    i = start
+    while i < stop:
+        yield i
+        i += step
 
 class Motor():
     serial_port         = None
     id: hex             = 0x00
     name: str           = None
 
+    
     tolerance: float = 0.1 #deg. Used for different operatins like wait_stop Must be > 0.01!
 
     # Simulation rotation
@@ -194,6 +204,8 @@ class Motor():
         raise TimeoutError("Motor does not stopped in defined time")
 
     # ------- SIMULATION FUNCTIONS -------  USE FOR simulation and angles <-> coordinates conversion
+    # See https://www.bsuir.by/m/12_113415_1_70397.pdf
+    # https://studref.com/472293/tehnika/matrichnye_metody_preobrazovaniya_koordinat_robototehnike?
     
     def T(self, angle_deg: float) -> np.array:
         angle_deg = math.radians(angle_deg)
@@ -208,6 +220,7 @@ class Motor():
                           [0, 1,  0,  self.sim_shifts[1]],
                           [0, 0,  1,  self.sim_shifts[2]],
                           [0, 0,  0,  1]  ])
+        #print("TS:", Ts)
                
         if self.sim_rot_plane == "XY":
             Ta = np.array([ [math.cos(k*angle_deg) , 0 , -math.sin(k*angle_deg) , 0],       #Rotation affects X axis
@@ -277,7 +290,7 @@ class Robot():
         
         return results
 
-    def sim_angles_to_coords(self, angles): # -> list:
+    def sim_angles_to_coords(self, angles):
         T = np.identity(4)        
         result = list()
         P = list()
@@ -286,8 +299,10 @@ class Robot():
             try:
                 angle   = float(angle)
                 Tm      = motor.T(angle)
+#                print("R", Tm)
+#                print("-"*30)
                 T       = np.matmul(T, Tm)
-                P.append([0])
+                P.append([0]) # build 1 coloum matrix
             except ValueError as e:
                 print("Error in robot.sim_angles_to_coords", str(e))
                 exit()
@@ -298,8 +313,138 @@ class Robot():
 
         for r in R[:-1]: result.append(round(r[0], 2))
 
-        return result
+        return np.array(result)
         
+robot = Robot()
+
+precalcs = Array
+
+#@time_of_function
+def precalcs(s_alpha, s_fi, s_theta, target):
+    tol = 0.02
+    
+    #current alpha angle
+    alpha = s_alpha
+    fi = s_fi
+    theta = s_theta
+ 
+
+    alpha_step = 18
+    fi_step = 18
+    theta_step = 18
+
+    steps = 0
+    prev_step_dist = 0
+    same_steps = 0
+
+    while (steps < 600):
+        steps = steps + 1
+        
+        
+        #ALPHA AXIS
+        
+        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
+
+        ccw_alpha = alpha - alpha_step
+        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([ccw_alpha, fi, theta]))
+            
+        cw_alpha = alpha + alpha_step
+        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([cw_alpha, fi, theta]))
+
+        if cw_dist < ccw_dist:
+                n_dist = cw_dist
+                n_alpha = cw_alpha
+        else:
+                n_dist = ccw_dist
+                n_alpha = ccw_alpha
+            
+        if dist - n_dist > tol:
+                alpha = n_alpha
+                #print(f"{steps} ALPHA = {round(alpha, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at alpha_step= {round(alpha_step, 2)}")
+        else:
+                if alpha_step > 0.02: alpha_step = round(alpha_step * 0.80, 3)
+
+
+
+        #FI AXIS
+        
+        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
+
+        ccw_fi = fi - fi_step
+        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, ccw_fi, theta]))
+            
+        cw_fi = fi + fi_step
+        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, cw_fi, theta]))
+
+        if cw_dist < ccw_dist:
+                n_dist = cw_dist
+                n_fi = cw_fi
+                print ("+", fi_step)
+        else:
+                n_dist = ccw_dist
+                n_fi = ccw_fi
+                print ("-", fi_step)
+            
+        if dist - n_dist > tol:
+                fi = n_fi
+                #print(f"{steps} FI = {round(fi, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at fi_step= {round(fi_step, 2)}")
+        else:
+                if fi_step > 0.02: fi_step = round(fi_step * 0.80, 3)
+
+
+
+        #THETA AXIS
+        
+        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
+
+        ccw_theta = theta - theta_step
+        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, fi, ccw_theta]))
+            
+        cw_theta = theta + theta_step
+        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, fi, ccw_theta]))
+
+        if cw_dist < ccw_dist:
+                n_dist = cw_dist
+                n_theta = cw_theta
+                
+        else:
+                n_dist = ccw_dist
+                n_theta = ccw_theta
+                
+            
+        if dist - n_dist > tol:
+                theta = n_theta
+                #print(f"{steps} THETA = {round(theta, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at fi_step= {round(theta_step, 2)}")
+        else:
+                if theta_step > 0.02:  theta_step = round(theta_step * 0.80, 3)
+
+        step_dist  = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
+        #print (step_dist)
+
+        if step_dist < 0.11: break
+
+        if step_dist == prev_step_dist:
+            same_steps = same_steps + 1
+            if (same_steps == 15): break
+        else:
+            prev_step_dist = step_dist
+            same_steps = 0
+
+    print("A %3.2f  F %3.2f T %3.2f -> %4.3f @ %5d stps" % (round(alpha, 2), round(fi,2), round(theta, 2), round(dist, 3), steps))
+
+
+    
+    '''
+    for alpha in range(-180, 180+1, 5):
+        for fi in range(-180, 180+1, 5):
+            for theta in range(-180, 180+1, 5):
+                x,y,z = robot.sim_angles_to_coords([alpha, fi, theta])
+                #dist = np.linalg.norm(target - coords)
+                i = i + 1
+
+    print("I=", i)
+    '''
+#    print(robot.sim_angles_to_coords([90, 0, 0]))
 
 # MAIN
 def main():
@@ -316,8 +461,7 @@ def main():
         print ("Error open serial port: " + str(e))
         exit()
 
-    robot = Robot()
-    
+        
     m1 = robot.add_motor(0x01, ser, 0.1, "X", False, [112.2, -45, 0],  "YZ")
     m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
@@ -334,12 +478,45 @@ def main():
         exit()
     '''
 
+    #robot.sim_angles_to_coords([cw_alpha, fi, theta])
+
+    #precalcs(-170, -170, -170)
+    #precalcs(0, 0, 0)
+    #precalcs(170, 170, 170)
+    #precalcs(90, 90, 90, np.array([243, 53.6, 64.5]))
+    
+    exit()
+    target = np.array([344, -25.6, 4.5])
 
     alpha = 0
     fi = 0
     theta = 0
 
-    print(robot.sim_angles_to_coords([alpha, fi, theta]))
+    tol = 0.03
+    i = 0
+    j = 0
+    for alpha in frange(-180.0, 180.+ 0.1, 3):
+        for fi in frange(-180.0+18, 180+0.1-18, 3):
+            for theta in frange(-180.+9, 180+0.1-9, 3):
+                x,y,z = robot.sim_angles_to_coords([alpha, fi, theta])
+                j = j + 1
+                if ((abs(x - round(x, 0)) < tol) and 
+                    (abs(y - round(y, 0)) < tol) and
+                    (abs(z - round(z, 0)) < tol)):
+                    i = i + 1
+                    print(f"{j}>{i} {x} {y} {z} - {alpha} {fi} {theta}")
+                                
+            
+
+                #dist = np.linalg.norm(target - coords)
+                #if dist < 15:
+                #   print(f"{dist} - {alpha} {fi} {theta}")
+
+    #print(robot.sim_angles_to_coords([alpha, fi, theta]))
+
+
+
+    exit()
 
     if ser.isOpen():
         try:
