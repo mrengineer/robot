@@ -23,7 +23,6 @@ CMD_MOTOR_START                = 0x88        #MOTOR operation
 CMD_MOTOR_MODEL                = 0x12        #Read driver and motor model commands
 
 
-
 def time_of_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
@@ -291,7 +290,7 @@ class Robot():
         return results
 
     def sim_angles_to_coords(self, angles):
-        T = np.identity(4)        
+        T = np.identity(4)
         result = list()
         P = list()
 

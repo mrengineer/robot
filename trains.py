@@ -2,6 +2,7 @@ from ctypes import sizeof
 from tokenize import single_quoted
 from turtle import color
 import numpy as np
+from scipy import optimize
 import math, os, time
 
 
@@ -72,8 +73,8 @@ def calc(alpha: float, fi: float, theta: float):
 
     #Angular rotation
 
-    cosine  = round(math.cos(k*alpha), 4)
-    sine    = round(math.sin(k*alpha), 4)
+    cosine  = (math.cos(k*alpha))
+    sine    = (math.sin(k*alpha))
 
     #print(f"cosine {cosine} sine {sine} alpha={alpha}")
 
@@ -112,8 +113,8 @@ def calc(alpha: float, fi: float, theta: float):
                         [0, 0,  1,  0],
                         [0, 0,  0,  1]  ])
 
-    cosine  = round(math.cos(k*fi), 4)
-    sine    = round(math.sin(k*fi), 4)
+    cosine  = math.cos(k*fi)
+    sine    = math.sin(k*fi)
     
     #Angular rotation
     Tm2a = np.array([   [cosine, 0 , -sine  , 0],          #Rotation affects X axis
@@ -153,8 +154,8 @@ def calc(alpha: float, fi: float, theta: float):
                         [0, 0,  1,  0],
                         [0, 0,  0,  1]  ])
 
-    cosine  = round(math.cos(k*theta), 4)
-    sine    = round(math.sin(k*theta), 4)
+    cosine  = math.cos(k*theta)
+    sine    = math.sin(k*theta)
 
     #Angular rotation
     Tm3a = np.array([   [cosine , 0 , -sine  , 0],            #rotation affects X axis
@@ -183,14 +184,16 @@ def calc(alpha: float, fi: float, theta: float):
 
     R = np.dot(T, pnt)
     #print(R)
-    return (round(R[0][0], 3), round(R[1][0], 3), round(R[2][0], 3))
+    rez = [round(R[0][0], 9), round(R[1][0], 9), round(R[2][0], 9)]
+    return rez
+    #return (round(R[0][0], 3), round(R[1][0], 3), round(R[2][0], 3))
 
 
 
 if __name__ == '__main__':
     #os.system('clear')
     s = []  #x+ y+ z+
-
+    print("Start")
 
     def get_segm(coords):
         ix = 0
@@ -202,12 +205,99 @@ if __name__ == '__main__':
 
     for seg in range(0, 8):               #0...7 segments of axis
         s.append([seg, []])
-        #for i in range(0, 390, 1):
-        #    s[seg].append([i, []])
 
     print("Fast search zones cnt:", len(s))
     
     
+
+    def opt_calc(ar):
+        a, f, t = ar
+        res = calc(a, f, t)
+
+        #Angles 10 10 30
+        x = 335.604
+        y = -10.014
+        z = -92.959
+
+        target = np.array([x, y, z])
+        return np.linalg.norm(target - res)
+
+    def calc2(inp):
+        return calc(inp[0], inp[1], inp[2])
+
+    print("Function check")
+    #print(opt_calc([0,0,0]))
+    #print(opt_calc([90,0,0]))
+    #print(opt_calc([90,90,0]))
+    #print(opt_calc([0,20,-20]))
+
+    print (calc(10, 10, 30)) #-> XYZ (335.604, -10.014, -92.959)
+
+    n=3
+
+    
+    def jacobian(f, x):
+        h   = 0.01
+        n   = len(x)
+        Jac = np.zeros([n,n])
+        f0  = f(x)
+        
+
+        for i in range(0, n, 1):
+            tt      = x[i]
+            x[i]    = tt + h
+
+            f1      = f(x)
+            x[i]    = tt
+            Jac [:,i] = (f1 - f0)/h
+        return Jac, f0
+
+    @time_of_function
+    def newton(f, x, tol=1.0e-3):
+            iterMax = 500
+            for i in range(iterMax):
+                    
+                    Jac, fO = jacobian(f, x)
+
+                    err = math.sqrt(np.dot(fO, fO) / len(x))
+                    #print (i, err)
+
+                    if err < tol:   return x, i                    
+
+                    dx = np.linalg.solve(Jac, fO)
+                    x = x - dx
+            raise ("Too many iterations for the Newton method")
+    
+    
+    def f(x):
+        f = np.zeros([n])
+
+        t_x = 335.604
+        t_y = -10.014
+        t_z = -92.959
+
+        r = calc(x[0], x[1], x[2])
+        f[0] = r[0]-t_x
+        f[1] = r[1]-t_y
+        f[2] = r[2]-t_z
+
+        return f
+    
+    x0 = np.zeros([n])
+    print("f(x):", f(x0))
+    
+    
+    #x, iter 
+    r, iter = newton(f, x0)
+    print ('Solution:\n', r)
+    print ('Newton iteration = ', iter)
+    
+    print (calc(r[0], r[1], r[2])) #-> XYZ (335.604, -10.014, -92.959)
+
+
+    exit()
+
+
     def add(a, f, t):
         x, y, z = calc(a, f, t)
 
@@ -219,44 +309,6 @@ if __name__ == '__main__':
         ix = s[seg]
         
         ix[1].append([np.array([x, y, z]), np.array([a, f, t])])
-
-
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-
-
-    xs = [0]
-    ys = [0]
-    zs = [0]
-
-    c = 0
-    for a in range (-180, 180+1, 3):
-        for f in range (0, 120+1, 3*3):
-            for t in range (-90, 90+1, 3*3):
-                add(a, f, t)
-
-                co = calc(a, f, t)
-
-                xs.append(co[0])
-                ys.append(co[1])
-                zs.append(co[2])
-                c =c +1
-
-    print(c)
-    
-    ax.plot([0, 350], [0, 0], [0, 0], label='ax', color="red")
-    ax.plot([0, 0], [0, 350], [0, 0], label='ax', color="green")
-    ax.plot([0, 0], [0, 0], [0, 350], label='ax', color="blue")
-
-    ax.scatter3D(xs, ys, zs, s=1, color='black')
-
-
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    #fig.tight_layout()
-    #plt.show()
 
     @time_of_function
     def find(x, y, z):
@@ -271,7 +323,7 @@ if __name__ == '__main__':
 
         res = min(ix[1], key=lambda v: np.linalg.norm(target - v[0]))
         d = np.linalg.norm(target - res[0])
-        print("DIST", d)
+        print("DIST to selected", d)
         return res
 
     @time_of_function
@@ -386,6 +438,28 @@ if __name__ == '__main__':
         print("A %3.2f  F %3.2f T %3.2f -> dist %4.3f @ %5d stps" % (round(alpha, 2), round(fi,2), round(theta, 2), round(dist, 3), steps))
 
 
+    xs = [0]
+    ys = [0]
+    zs = [0]
+
+    c = 0
+    for a in range (-180, 180+1, 3):
+        for f in range (0, 120+1, 3):
+            for t in range (-90, 90+1, 3*3):
+                add(a, f, t)
+
+                co = calc(a, f, t)
+
+                xs.append(co[0])
+                ys.append(co[1])
+                zs.append(co[2])
+                c =c +1
+
+    print(c)
+
+
+    print("Search angles")
+
     x = 100.3
     y = 51.0
     z = 49.1
@@ -412,3 +486,26 @@ if __name__ == '__main__':
     find_angles(r[1][0], r[1][1], r[1][2], target)
 
 
+
+
+
+    
+    '''
+
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    ax.plot([0, 350], [0, 0], [0, 0], label='ax', color="red")
+    ax.plot([0, 0], [0, 350], [0, 0], label='ax', color="green")
+    ax.plot([0, 0], [0, 0], [0, 350], label='ax', color="blue")
+
+    ax.scatter3D(xs, ys, zs, s=1, color='black')
+
+
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    #fig.tight_layout()
+    #plt.show()
+
+'''
