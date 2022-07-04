@@ -219,23 +219,25 @@ class Motor():
                           [0, 1,  0,  self.sim_shifts[1]],
                           [0, 0,  1,  self.sim_shifts[2]],
                           [0, 0,  0,  1]  ])
-        #print("TS:", Ts)
+        
+        sine = math.sin(k*angle_deg)
+        cosine = math.cos(k*angle_deg)
                
         if self.sim_rot_plane == "XY":
-            Ta = np.array([ [math.cos(k*angle_deg) , 0 , -math.sin(k*angle_deg) , 0],       #Rotation affects X axis
-                            [-math.sin(k*angle_deg), 0 ,  math.cos(k*angle_deg) , 0],       #Rotation affects Y axis (ie XY plane)
-                            [0                     , 0 , 1                      , 0],                            
-                            [0                     , 0 , 0                      , 1]    ])  #Scale always 1
+            Ta = np.array([ [cosine , 0 , -sine , 0],       #Rotation affects X axis
+                            [-sine, 0 ,  cosine , 0],       #Rotation affects Y axis (ie XY plane)
+                            [0    , 0 , 1 , 0],                            
+                            [0    , 0 , 0 , 1]    ])  #Scale always 1
         elif self.sim_rot_plane == "XZ":
-            Ta = np.array([ [math.cos(k*angle_deg) , 0 , -math.sin(k*angle_deg) , 0],       #Rotation affects X axis
-                            [0                     , 1 , 0                      , 0],
-                            [-math.sin(k*angle_deg), 0 ,  math.cos(k*angle_deg) , 0],       #Rotation affects Z axis (ie XZ plane)
-                            [0                     , 0 , 0                      , 1]    ])
+            Ta = np.array([ [cosine , 0 , -sine , 0],       #Rotation affects X axis
+                            [0      , 1 , 0     , 0],
+                            [-sine  , 0 , cosine , 0],       #Rotation affects Z axis (ie XZ plane)
+                            [0      , 0 , 0      , 1]    ])
         elif self.sim_rot_plane == "YZ":
-            Ta = np.array([ [1, 0                     , 0                       , 0],       #X axis (no changes because of angle)
-                            [0, math.cos(k*angle_deg) , -math.sin(k*angle_deg)  , 0],       #Rotation in YZ plane
-                            [0, math.sin(k*angle_deg) ,  math.cos(k*angle_deg)  , 0],
-                            [0, 0                     , 0                       , 1]    ])            
+            Ta = np.array([ [1, 0 , 0 , 0],       #X axis (no changes because of angle)
+                            [0, cosine , -sine  , 0],       #Rotation in YZ plane
+                            [0, sine ,  cosine , 0],
+                            [0, 0 , 0  , 1]    ])            
         
         else:
             raise Exception('Wrong rotation plane. It must be XY, XZ or YZ')
@@ -289,161 +291,80 @@ class Robot():
         
         return results
 
-    def sim_angles_to_coords(self, angles):
-        T = np.identity(4)
-        result = list()
-        P = list()
+    # Calculates coordinates usng angles
+    def sim_angles_to_coords(self, angles: np.array) -> np.array:
+        T       = np.identity(4)
+        result  = list()
+        P       = list()
 
         for motor, angle in zip(self.__motors, angles):
             try:
                 angle   = float(angle)
                 Tm      = motor.T(angle)
-#                print("R", Tm)
-#                print("-"*30)
                 T       = np.matmul(T, Tm)
                 P.append([0]) # build 1 coloum matrix
             except ValueError as e:
-                print("Error in robot.sim_angles_to_coords", str(e))
+                print("Error in sim_angles_to_coords", str(e))
                 exit()
 
         P.append([1]) # end of creating matrix 1 coloumn. Last one is scale factor
 
         R = np.dot(T, np.array(P))
 
-        for r in R[:-1]: result.append(round(r[0], 2))
+        for r in R[:-1]: result.append(r[0])
 
         return np.array(result)
+    
+    # Calculates chains angles using from target XYZ coordinates
+    #@time_of_function
+    def sim_coords_to_angles(self, target: np.array, guess: np.array): # -> np.array, np.array:
+        def jacobian(f, x: np.array):
+            h   = 0.01      #step size
+            n   = len(x)
+            Jac = np.zeros([n,n])
+            f0  = f(x)
+            
+
+            for i in range(0, n, 1):
+                tt      = x[i]
+                x[i]    = tt + h
+
+                f1      = f(x)
+                x[i]    = tt
+                Jac [:,i] = (f1 - f0)/h
+            return Jac, f0
         
+        def newton(f, x: np.array, tol=1.0e-2):
+            iterMax = 1500
+            for i in range(iterMax):                        
+                Jac, fO = jacobian(f, x)
+                err = math.sqrt(np.dot(fO, fO) / len(x))
+
+                if err < tol:   return x, i
+
+                dx = np.linalg.solve(Jac, fO)
+                x = x - dx
+            raise ("Too many iterations for the Newton method")
+        
+        def f(x: np.array):
+            f = np.zeros([3])
+            r = self.sim_angles_to_coords([x[0], x[1], x[2]])
+            f = r - target
+
+            return f
+
+    
+        r, iter = newton(f, guess)
+
+
+        # this area suould be reconsidered for linear axises
+        r = r % 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
+        r = 360 - r
+
+        #result and tolerance
+        return r.round(2), robot.sim_angles_to_coords(r)-target
 robot = Robot()
 
-precalcs = Array
-
-#@time_of_function
-def precalcs(s_alpha, s_fi, s_theta, target):
-    tol = 0.02
-    
-    #current alpha angle
-    alpha = s_alpha
-    fi = s_fi
-    theta = s_theta
- 
-
-    alpha_step = 18
-    fi_step = 18
-    theta_step = 18
-
-    steps = 0
-    prev_step_dist = 0
-    same_steps = 0
-
-    while (steps < 600):
-        steps = steps + 1
-        
-        
-        #ALPHA AXIS
-        
-        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
-
-        ccw_alpha = alpha - alpha_step
-        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([ccw_alpha, fi, theta]))
-            
-        cw_alpha = alpha + alpha_step
-        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([cw_alpha, fi, theta]))
-
-        if cw_dist < ccw_dist:
-                n_dist = cw_dist
-                n_alpha = cw_alpha
-        else:
-                n_dist = ccw_dist
-                n_alpha = ccw_alpha
-            
-        if dist - n_dist > tol:
-                alpha = n_alpha
-                #print(f"{steps} ALPHA = {round(alpha, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at alpha_step= {round(alpha_step, 2)}")
-        else:
-                if alpha_step > 0.02: alpha_step = round(alpha_step * 0.80, 3)
-
-
-
-        #FI AXIS
-        
-        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
-
-        ccw_fi = fi - fi_step
-        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, ccw_fi, theta]))
-            
-        cw_fi = fi + fi_step
-        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, cw_fi, theta]))
-
-        if cw_dist < ccw_dist:
-                n_dist = cw_dist
-                n_fi = cw_fi
-                print ("+", fi_step)
-        else:
-                n_dist = ccw_dist
-                n_fi = ccw_fi
-                print ("-", fi_step)
-            
-        if dist - n_dist > tol:
-                fi = n_fi
-                #print(f"{steps} FI = {round(fi, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at fi_step= {round(fi_step, 2)}")
-        else:
-                if fi_step > 0.02: fi_step = round(fi_step * 0.80, 3)
-
-
-
-        #THETA AXIS
-        
-        dist    = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
-
-        ccw_theta = theta - theta_step
-        ccw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, fi, ccw_theta]))
-            
-        cw_theta = theta + theta_step
-        cw_dist  = np.linalg.norm(target - robot.sim_angles_to_coords([alpha, fi, ccw_theta]))
-
-        if cw_dist < ccw_dist:
-                n_dist = cw_dist
-                n_theta = cw_theta
-                
-        else:
-                n_dist = ccw_dist
-                n_theta = ccw_theta
-                
-            
-        if dist - n_dist > tol:
-                theta = n_theta
-                #print(f"{steps} THETA = {round(theta, 2)} dist = {round(dist, 2)} new dist {round(n_dist,2)}    at fi_step= {round(theta_step, 2)}")
-        else:
-                if theta_step > 0.02:  theta_step = round(theta_step * 0.80, 3)
-
-        step_dist  = np.linalg.norm(target - (robot.sim_angles_to_coords([alpha, fi, theta])))
-        #print (step_dist)
-
-        if step_dist < 0.11: break
-
-        if step_dist == prev_step_dist:
-            same_steps = same_steps + 1
-            if (same_steps == 15): break
-        else:
-            prev_step_dist = step_dist
-            same_steps = 0
-
-    print("A %3.2f  F %3.2f T %3.2f -> %4.3f @ %5d stps" % (round(alpha, 2), round(fi,2), round(theta, 2), round(dist, 3), steps))
-
-
-    
-    '''
-    for alpha in range(-180, 180+1, 5):
-        for fi in range(-180, 180+1, 5):
-            for theta in range(-180, 180+1, 5):
-                x,y,z = robot.sim_angles_to_coords([alpha, fi, theta])
-                #dist = np.linalg.norm(target - coords)
-                i = i + 1
-
-    print("I=", i)
-    '''
-#    print(robot.sim_angles_to_coords([90, 0, 0]))
 
 # MAIN
 def main():
@@ -465,75 +386,26 @@ def main():
     m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
 
-    '''
-    print("Set angles as ZERO positions? Y=yes")
-    inp = input().upper()
-    if (inp == "Y"):
-        #save zero positions for axes
-        m1.set_zero_cur_position()
-        m2.set_zero_cur_position()
-        m3.set_zero_cur_position()
-        print("RESET POWER!")
-        exit()
-    '''
 
-    #robot.sim_angles_to_coords([cw_alpha, fi, theta])
-
-    #precalcs(-170, -170, -170)
-    #precalcs(0, 0, 0)
-    #precalcs(170, 170, 170)
-    #precalcs(90, 90, 90, np.array([243, 53.6, 64.5]))
+    print ("sim_angles_to_coords", robot.sim_angles_to_coords([10, 10, 30])) #-> XYZ (335.604, -10.014, -92.959)
     
-    exit()
-    target = np.array([344, -25.6, 4.5])
 
-    alpha = 0
-    fi = 0
-    theta = 0
+    target = np.array([335.6, -10., -92.96])
 
-    tol = 0.03
-    i = 0
-    j = 0
-    for alpha in frange(-180.0, 180.+ 0.1, 3):
-        for fi in frange(-180.0+18, 180+0.1-18, 3):
-            for theta in frange(-180.+9, 180+0.1-9, 3):
-                x,y,z = robot.sim_angles_to_coords([alpha, fi, theta])
-                j = j + 1
-                if ((abs(x - round(x, 0)) < tol) and 
-                    (abs(y - round(y, 0)) < tol) and
-                    (abs(z - round(z, 0)) < tol)):
-                    i = i + 1
-                    print(f"{j}>{i} {x} {y} {z} - {alpha} {fi} {theta}")
-                                
-            
+    res = robot.sim_coords_to_angles(target, np.zeros([3]))
 
-                #dist = np.linalg.norm(target - coords)
-                #if dist < 15:
-                #   print(f"{dist} - {alpha} {fi} {theta}")
-
-    #print(robot.sim_angles_to_coords([alpha, fi, theta]))
-
-
-
-    exit()
+    print ('Angles Solution:', res[0])
+    print ('Resulting tolerance', res[1])
+    
+    
 
     if ser.isOpen():
         try:
             ser.flushInput()    #flush input buffer, discarding all its contents
             ser.flushOutput()   #flush output buffer, aborting current output
             
-
-            #GO ZERO pos
-            #robot.goto_zero(10)                      
-            
-            #save zero positions for axes
-            #motor1.set_zero_cur_position()
-            #motor2.set_zero_cur_position()
-            #motor3.set_zero_cur_position()
-
-
             while(True):
-                robot.goto_abs_multi_loop_angles_speeds([alpha, fi, theta],    [30, 30, 40])
+                #robot.goto_abs_multi_loop_angles_speeds([alpha, fi, theta],    [30, 30, 40])
 
                 '''
                 print("Set angles as ZERO positions? Y=yes")
@@ -544,11 +416,12 @@ def main():
                     m2.set_zero_cur_position()
                     m3.set_zero_cur_position()
                     print("RESET POWER!")
+                    exit()
                 '''
                 
 
                 print("Enter alpha fi theta angles Ex.: 4.0 -11 4")
-                print(robot.get_multi_loop_angles())
+                print("get_multi_loop_angles", robot.get_multi_loop_angles())
                 inp = input()
                 a, f, t = inp.split(" ")
 
@@ -558,7 +431,8 @@ def main():
 
                 print("DEGREES", alpha, fi, theta)
 
-                robot.sim_angles_to_coords([alpha, fi, theta])
+                print(robot.sim_angles_to_coords([alpha, fi, theta]))
+                robot.goto_abs_multi_loop_angles_speeds([alpha, fi, theta],  [60, 80, 80])
 
             exit()
             
