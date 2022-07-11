@@ -381,7 +381,7 @@ def main():
         print ("Error open serial port: " + str(e))
         exit()
 
-        
+    
     m1 = robot.add_motor(0x01, ser, 0.1, "X", False, [112.2, -45, 0],  "YZ")
     m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
