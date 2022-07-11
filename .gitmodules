@@ -1,0 +1,3 @@
+[submodule "PyCNC"]
+	path = PyCNC
+	url = https://github.com/Nikolay-Kha/PyCNC.git
