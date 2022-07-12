@@ -1,11 +1,11 @@
 from array import array
-import copy
+#import copy
 import math
-from multiprocessing.dummy import Array
-import os
+#from multiprocessing.dummy import Array
+#import os
 import time, sys
 from struct import *
-from xmlrpc.client import Boolean
+#from xmlrpc.client import Boolean
 
 import numpy as np
 import serial
@@ -318,8 +318,7 @@ class Robot():
     # Calculates chains angles using from target XYZ coordinates
     #@time_of_function
     def sim_coords_to_angles(self, target: np.array, guess: np.array): # -> np.array, np.array:
-        def jacobian(f, x: np.array):
-            h   = 0.01      #step size
+        def jacobian(f, x: np.array, h = 0.01):
             n   = len(x)
             Jac = np.zeros([n,n])
             f0  = f(x)
@@ -334,10 +333,10 @@ class Robot():
                 Jac [:,i] = (f1 - f0)/h
             return Jac, f0
         
-        def newton(f, x: np.array, tol=1.0e-2):
-            iterMax = 1500
-            for i in range(iterMax):                        
-                Jac, fO = jacobian(f, x)
+        def newton(f, x: np.array, tol=1.0e-2, h = 0.002):
+            iterMax = 350
+            for i in range(iterMax):
+                Jac, fO = jacobian(f, x, h)
                 err = math.sqrt(np.dot(fO, fO) / len(x))
 
                 if err < tol:   return x, i
@@ -353,16 +352,29 @@ class Robot():
 
             return f
 
-    
+        
+        
         r, iter = newton(f, guess)
-
+    
+        print("ANGLES:", r)
+        print("1)Angles XYZ", robot.sim_angles_to_coords(r), "\nTarget", target, "\nTOL", (robot.sim_angles_to_coords(r)-target))
 
         # this area suould be reconsidered for linear axises
-        r = r % 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
-        r = 360 - r
+        r[0] = r[0] - int(r[0] / 360) * 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
+        r[1] = r[1] - int(r[1] / 360) * 360
+        r[2] = r[2] - int(r[2] / 360) * 360
+        
 
         #result and tolerance
-        return r.round(2), robot.sim_angles_to_coords(r)-target
+
+        print("\nANGLES:", r)
+        print("2)Angles XYZ", robot.sim_angles_to_coords(r), "\nTarget", target, "\nTOL", (robot.sim_angles_to_coords(r)-target))
+               
+        C_XYZ = robot.sim_angles_to_coords(r)
+        TOL = [C_XYZ[0] - target[0], C_XYZ[1] - target[1], C_XYZ[2] - target[2]]
+        print("\nTOL2", TOL)
+
+        return r.round(3), (robot.sim_angles_to_coords(r)-target)
 robot = Robot()
 
 
@@ -386,16 +398,22 @@ def main():
     m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
 
-
-    print ("sim_angles_to_coords", robot.sim_angles_to_coords([10, 10, 30])) #-> XYZ (335.604, -10.014, -92.959)
+  
+    
     
 
     target = np.array([335.6, -10., -92.96])
 
     res = robot.sim_coords_to_angles(target, np.zeros([3]))
 
-    print ('Angles Solution:', res[0])
-    print ('Resulting tolerance', res[1])
+    print ("Checking angles calculation")
+
+    print ("sim_angles_to_coords", robot.sim_angles_to_coords([10, 10, 30])) #-> XYZ (335.604, -10.014, -92.959)
+
+    print ('TARGET COORDINATES:', target)
+    print ('ANGLES SOLUTION:', res[0])
+    print ('RESULT TOLERANCE', res[1])
+    print ("\n\n")
     
     
 
