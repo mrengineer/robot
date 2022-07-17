@@ -1,14 +1,11 @@
 from array import array
-#import copy
 import math
-#from multiprocessing.dummy import Array
-#import os
-import time, sys
+import time, sys, os
 from struct import *
-#from xmlrpc.client import Boolean
-
 import numpy as np
 import serial
+import GCode
+
 
 CMD_HEADER                     = 0x3E
 CMD_ASK_MULTI_LOOP_ANGLE       = 0x92        #Read multi -loop Angle command
@@ -31,11 +28,6 @@ def time_of_function(function):
         return res
     return wrapped
 
-def frange(start, stop, step):
-    i = start
-    while i < stop:
-        yield i
-        i += step
 
 class Motor():
     serial_port         = None
@@ -356,9 +348,7 @@ class Robot():
         
         r, iter = newton(f, guess)
     
-        print("ANGLES:", r)
-        print("1)Angles XYZ", robot.sim_angles_to_coords(r), "\nTarget", target, "\nTOL", (robot.sim_angles_to_coords(r)-target))
-
+      
         # this area suould be reconsidered for linear axises
         r[0] = r[0] - int(r[0] / 360) * 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
         r[1] = r[1] - int(r[1] / 360) * 360
@@ -367,16 +357,31 @@ class Robot():
 
         #result and tolerance
 
-        print("\nANGLES:", r)
-        print("2)Angles XYZ", robot.sim_angles_to_coords(r), "\nTarget", target, "\nTOL", (robot.sim_angles_to_coords(r)-target))
-               
         C_XYZ = robot.sim_angles_to_coords(r)
         TOL = [C_XYZ[0] - target[0], C_XYZ[1] - target[1], C_XYZ[2] - target[2]]
-        print("\nTOL2", TOL)
+      
+        return r.round(3), TOL
 
-        return r.round(3), (robot.sim_angles_to_coords(r)-target)
+
 robot = Robot()
+intp  = GCode.GInterpreter("""%
+( Данная управляющая программа для станков с ЧПУ создана )
+( Файл создан:  2022-07-17  01:27:15  )
 
+N010 G00 Z0.5 F70 
+N020 G00 X5 Y15 F70
+N030 G01 Z-1 F50
+N040 G01 X5 Y35 F50
+N050 G01 X35 Y15
+N060 G01 X5 Y15
+N070 G00 Z0.5 F70
+N080G00X0Y0F70
+N090M30
+%""")
+
+intp.start()
+
+exit()
 
 # MAIN
 def main():
@@ -397,14 +402,15 @@ def main():
     m1 = robot.add_motor(0x01, ser, 0.1, "X", False, [112.2, -45, 0],  "YZ")
     m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
-
-  
-    
-    
+      
 
     target = np.array([335.6, -10., -92.96])
 
-    res = robot.sim_coords_to_angles(target, np.zeros([3]))
+    #use previous angles for previous point as guess to achieve shortest change in angles
+    guess = np.zeros([3])
+    guess[0] = 9
+    guess[1] = 9
+    res = robot.sim_coords_to_angles(target, guess)
 
     print ("Checking angles calculation")
 
