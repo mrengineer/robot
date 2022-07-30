@@ -30,24 +30,24 @@ def time_of_function(function):
 
 
 class Motor():
-    serial_port         = None
-    id: hex             = 0x00
-    name: str           = None
-
+    serial_port                    = None
+    id: hex                        = 0x00
+    name: str                      = None
+    __cur_multi_loop_angle: float    = 0.0
     
-    tolerance: float = 0.1 #deg. Used for different operatins like wait_stop Must be > 0.01!
+    tolerance: float               = 0.1 #deg. Used for different operatins like wait_stop Must be > 0.01!
 
     # Simulation rotation
-    sim_CW: bool       = True    
+    sim_CW: bool                   = True
     
     # Tooltip shift. Motor's zero point is bottom axis of motor.
-    sim_shifts             = [0.0, 0.0, 0.0]
-    sim_rot_plane: str     = "YZ"
+    sim_shifts                     = [0.0, 0.0, 0.0]
+    sim_rot_plane: str             = "YZ"
 
     def __init__(self, id: hex, serial_port, tolerance: float, name: str, CW: bool, sim_shifts: list, sim_rot_plane: str):
         assert id           >= 0
         assert tolerance    >= 0.01
-        assert serial_port  != None
+        #assert serial_port  != None    #no check for case of simulation
         assert name         != None
         
         #Yep, I know about enums!
@@ -85,52 +85,60 @@ class Motor():
 
     def abs_multi_loop_angle_speed(self, angle: float, speed: float):
         assert speed > 0, "Speed must be grater than zero"
-
-        #if not self.CW:  angle = -1 * angle
         
-        data_length = 0x0C
-        
-        header_crc  = (CMD_HEADER + CMD_ABS_MULTI_LOOP_ANGLE_SPEED + self.id + data_length) % 256
+        if not self.serial_port == None:
+            #if not self.CW:  angle = -1 * angle
+            
+            data_length = 0x0C
+            
+            header_crc  = (CMD_HEADER + CMD_ABS_MULTI_LOOP_ANGLE_SPEED + self.id + data_length) % 256
 
-        angle       = int(angle * 100)
-        speed       = int(speed * 100)    #according documentaton
+            angle       = int(angle * 100)
+            speed       = int(speed * 100)    #according documentaton
 
-        data        = pack('<qi', angle, speed)
-        data_crc    = sum(data) % 256
+            data        = pack('<qi', angle, speed)
+            data_crc    = sum(data) % 256
 
-        snd = bytearray(pack('<BBBBBqiB', CMD_HEADER, CMD_ABS_MULTI_LOOP_ANGLE_SPEED, self.id, data_length, header_crc, angle, speed, data_crc))
-        
-        self.serial_port.write(snd)
+            snd = bytearray(pack('<BBBBBqiB', CMD_HEADER, CMD_ABS_MULTI_LOOP_ANGLE_SPEED, self.id, data_length, header_crc, angle, speed, data_crc))
+            
+            self.serial_port.write(snd)
 
-        res = self.__read_responce(13)      #wait 13 bytes
+            res = self.__read_responce(13)      #wait 13 bytes
+        else:  #if no serial port than simulate
+            res = 1
+            self.__cur_multi_loop_angle = angle
 
         return res
 
     def inc_angle_speed(self, angle: float, speed: float):
         assert speed > 0, "Speed must be grater than zero"
 
-        data_length = 0x08
+        if not self.serial_port == None:
+            data_length = 0x08
 
-        #if not self.CW:  angle = -1 * angle
-        
-        header_crc  = (CMD_HEADER + CMD_INC_ANGLE_SPEED + self.id + data_length) % 256
+            #if not self.CW:  angle = -1 * angle
+            
+            header_crc  = (CMD_HEADER + CMD_INC_ANGLE_SPEED + self.id + data_length) % 256
 
-        angle       = int(angle * 100)
-        speed       = int(speed * 100)    #according documentaton
+            angle       = int(angle * 100)
+            speed       = int(speed * 100)    #according documentaton
 
-        data        = pack('<ii', angle, speed)
-        data_crc    = sum(data) % 256
+            data        = pack('<ii', angle, speed)
+            data_crc    = sum(data) % 256
 
-        snd = bytearray(pack('<BBBBBiiB', CMD_HEADER, CMD_INC_ANGLE_SPEED, self.id, data_length, header_crc, angle, speed, data_crc))
-        
-        print(" ".join(map(lambda b: format(b, "02x"), snd)))
-        self.serial_port.write(snd)
+            snd = bytearray(pack('<BBBBBiiB', CMD_HEADER, CMD_INC_ANGLE_SPEED, self.id, data_length, header_crc, angle, speed, data_crc))
+            
+            print(" ".join(map(lambda b: format(b, "02x"), snd)))
+            self.serial_port.write(snd)
 
-        res = self.__read_responce(13)      #wait 13 bytes
-
+            res = self.__read_responce(13)      #wait 13 bytes
+        else:  #if no serial port than simulate
+            res = 1
+            self.__cur_multi_loop_angle = self.__cur_multi_loop_angle + angle
         return res
 
     # 0 ... 365.99 deg
+    #NB! simulation when serial port is not set is not implemented!
     def get_single_loop_angle(self):
         header_crc = (CMD_HEADER + CMD_ASK_SINGLE_LOOP_ANGLE + self.id + 0x00) % 256
         r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_SINGLE_LOOP_ANGLE, self.id, 0x00, header_crc))
@@ -156,23 +164,24 @@ class Motor():
 
     # 0 ... INF deg
     def get_multi_loop_angle(self):
-        header_crc = (CMD_HEADER + CMD_ASK_MULTI_LOOP_ANGLE + self.id + 0x00) % 256
-        r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_MULTI_LOOP_ANGLE, self.id, 0x00, header_crc))
+        if not self.serial_port == None:
+            header_crc = (CMD_HEADER + CMD_ASK_MULTI_LOOP_ANGLE + self.id + 0x00) % 256
+            r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_MULTI_LOOP_ANGLE, self.id, 0x00, header_crc))
 
-        self.serial_port.write(r)
+            self.serial_port.write(r)
 
-        #GET RESPONCE FROM MOTOR
-        #TODO add motor ID check
+            #GET RESPONCE FROM MOTOR
+            #TODO add motor ID check
 
-        #time.sleep(.01)  #give the serial port sometime to receive the data
-        res = self.__read_responce(14)
-        
-        angle = unpack("HHHH", res[5:13])
-        
-        r_angle = float(angle[0]/100)        
-        #if not self.CW:  r_angle = -1 * r_angle
+            res = self.__read_responce(14)
+            
+            angle = unpack("HHHH", res[5:13])
+            
+            #update value beore return
+            self.__cur_multi_loop_angle = float(angle[0]/100)        
+            #if not self.CW:  r_angle = -1 * r_angle
 
-        return r_angle
+        return self.__cur_multi_loop_angle
 
     #blocks code execution till motor stop (angle do not change because of ANY reason)
     #tolerance to detect angle similarity,  request_period to reduce ammout of requests
@@ -184,19 +193,21 @@ class Motor():
         assert timeout          >= 0.1, "Timeout must be > 0.1 sec"
 
         while (time.time() - start < timeout):
-            cur_angle   = self.get_multi_loop_angle()
-            delta       = abs(prev_value-cur_angle)
+            cur_multi_loop_angle   = self.get_multi_loop_angle()
+            delta                       = abs(prev_value - cur_multi_loop_angle)
             
             if (delta < self.tolerance): return
 
-            prev_value = cur_angle
+            prev_value = cur_multi_loop_angle
             time.sleep(request_period)
 
         raise TimeoutError("Motor does not stopped in defined time")
 
-    # ------- SIMULATION FUNCTIONS -------  USE FOR simulation and angles <-> coordinates conversion
-    # See https://www.bsuir.by/m/12_113415_1_70397.pdf
-    # https://studref.com/472293/tehnika/matrichnye_metody_preobrazovaniya_koordinat_robototehnike?
+    '''
+    ------- SIMULATION FUNCTIONS -------  USE FOR simulation and angles <-> coordinates conversion
+    See https://www.bsuir.by/m/12_113415_1_70397.pdf
+    https://studref.com/472293/tehnika/matrichnye_metody_preobrazovaniya_koordinat_robototehnike?
+    '''
     
     def T(self, angle_deg: float) -> np.array:
         angle_deg = math.radians(angle_deg)
@@ -238,7 +249,7 @@ class Motor():
 
 class Robot():
     __motors = list()
-    __port: serial.Serial = None    
+    __port: serial.Serial = None    #if sumulation, serial port is not assigned
 
     def __init__(self, port_name: str) -> None:
         try:
@@ -253,7 +264,6 @@ class Robot():
 
         except Exception as e:
             print ("Error open serial port: " + str(e))
-        
 
     def add_motor(self, 
                     id: hex, tolerance: float, 
@@ -376,9 +386,9 @@ class Robot():
         return r.round(3), TOL
 
     def get_coords(self) -> np.array:
-        cur_coords = self.sim_angles_to_coords(self.get_multi_loop_angles())
-        return cur_coords
+        return self.sim_angles_to_coords(self.get_multi_loop_angles())
 
+    
 
 # MAIN
 if __name__ == '__main__':

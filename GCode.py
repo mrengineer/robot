@@ -1,7 +1,14 @@
+import logging
 import re, os
 import numpy as np
 from parso import split_lines
+
+log = logging.getLogger("robot")
+
+
 import robot
+
+
 
 # extract letter-digit pairs
 g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
@@ -28,6 +35,7 @@ class GInterpreter():
 
     def __init__(self, port_name: str) -> None:
         assert len(port_name) >= 3, "Incorrect portname"
+        log.warning("Start")
         self.robot = robot.Robot(port_name)
 
 
@@ -81,7 +89,7 @@ class GInterpreter():
         if "S" in params: self.T = float(params["S"])
         if "F" in params: self.T = float(params["F"])
 
-        if "G" in params:            
+        if "G" in params:
             G = int(params["G"])
             if (G==0):
                 print("Fast jump to point")
@@ -95,6 +103,17 @@ class GInterpreter():
                     if "Z" in params: self.Abs_Z = self.Abs_Z + float(params["Z"])                    
             elif (G==1):
                 print("Linear move to point with feed F")
+
+                #NB Feed is not implemented yet!
+                
+                if self.Abs_coord: 
+                    if "X" in params: self.Abs_X = float(params["X"])
+                    if "Y" in params: self.Abs_Y = float(params["Y"])
+                    if "Z" in params: self.Abs_Z = float(params["Z"])
+                else:
+                    if "X" in params: self.Abs_X = self.Abs_X + float(params["X"])
+                    if "Y" in params: self.Abs_Y = self.Abs_Y + float(params["Y"])
+                    if "Z" in params: self.Abs_Z = self.Abs_Z + float(params["Z"])                 
             elif (G==2):
                 print("Clockwise circular interpolation")
             elif (G==3):
@@ -157,7 +176,7 @@ def main():
     ( Данная управляющая программа для станков с ЧПУ создана )
     ( Файл создан:  2022-07-17  01:27:15  )
 
-    N010 G00 Z0.5 F70 
+    N010 G00 Z0.5 F70
     N020 G00 X5 Y15 F70
     N030 G01 Z-1 F50
     N040 G01 X5 Y35 F50
