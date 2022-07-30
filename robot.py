@@ -4,7 +4,7 @@ import time, sys, os
 from struct import *
 import numpy as np
 import serial
-import GCode
+
 
 
 CMD_HEADER                     = 0x3E
@@ -238,16 +238,29 @@ class Motor():
 
 class Robot():
     __motors = list()
+    __port: serial.Serial = None    
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, port_name: str) -> None:
+        try:
+            self.__port = serial.Serial(
+                port        =   f"/dev/{port_name}",
+                baudrate    =   115200,
+                parity      =   serial.PARITY_NONE,
+                stopbits    =   serial.STOPBITS_ONE,
+                bytesize    =   serial.EIGHTBITS,
+                #timeout=1
+            )
+
+        except Exception as e:
+            print ("Error open serial port: " + str(e))
+        
 
     def add_motor(self, 
-                    id: hex, serial_port, tolerance: float, 
+                    id: hex, tolerance: float, 
                     name: str, CW: bool, sim_shifts: list, 
                     sim_rot_plane: str) -> Motor :
 
-        new_motor = Motor(id, serial_port, tolerance, name, CW, sim_shifts, sim_rot_plane)
+        new_motor = Motor(id, self.__port, tolerance, name, CW, sim_shifts, sim_rot_plane)
         self.__motors.append(new_motor)
         return new_motor
 
@@ -362,47 +375,14 @@ class Robot():
       
         return r.round(3), TOL
 
+    def get_coords(self) -> np.array:
+        cur_coords = self.sim_angles_to_coords(self.get_multi_loop_angles())
+        return cur_coords
 
-robot = Robot()
-intp  = GCode.GInterpreter("""%
-( Данная управляющая программа для станков с ЧПУ создана )
-( Файл создан:  2022-07-17  01:27:15  )
-
-N010 G00 Z0.5 F70 
-N020 G00 X5 Y15 F70
-N030 G01 Z-1 F50
-N040 G01 X5 Y35 F50
-N050 G01 X35 Y15
-N060 G01 X5 Y15
-N070 G00 Z0.5 F70
-N080G00X0Y0F70
-N090M30
-%""")
-
-intp.start()
-
-exit()
 
 # MAIN
-def main():
-    try:
-        ser = serial.Serial(
-            port        =   '/dev/ttyUSB0',
-            baudrate    =   115200,
-            parity      =   serial.PARITY_NONE,
-            stopbits    =   serial.STOPBITS_ONE,
-            bytesize    =   serial.EIGHTBITS,
-            #timeout=1
-        )
-    except Exception as e:
-        print ("Error open serial port: " + str(e))
-        exit()
-
-    
-    m1 = robot.add_motor(0x01, ser, 0.1, "X", False, [112.2, -45, 0],  "YZ")
-    m2 = robot.add_motor(0x02, ser, 0.1, "Y1", False, [126, 53, 0], "XZ")
-    m3 = robot.add_motor(0x03, ser, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
-      
+if __name__ == '__main__':
+     
 
     target = np.array([335.6, -10., -92.96])
 
@@ -478,6 +458,3 @@ def main():
     else:
         print("cannot open serial port")
 
-if __name__ == '__main__':
-    #os.system('clear')
-    main()
