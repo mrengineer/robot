@@ -274,6 +274,10 @@ class Robot():
         self.__motors.append(new_motor)
         return new_motor
 
+    @property
+    def motors_count (self):
+        return len(self.__motors)
+
     def goto_zero(self, speed: float):
         for motor in self.__motors:
             motor.abs_multi_loop_angle_speed(0, speed)
@@ -368,11 +372,11 @@ class Robot():
             return f
 
         
-        
+        #guess is angles
         r, iter = newton(f, guess)
     
       
-        # this area suould be reconsidered for linear axises
+        # this area sould be reconsidered for linear axises
         r[0] = r[0] - int(r[0] / 360) * 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
         r[1] = r[1] - int(r[1] / 360) * 360
         r[2] = r[2] - int(r[2] / 360) * 360
@@ -380,8 +384,10 @@ class Robot():
 
         #result and tolerance
 
-        C_XYZ = robot.sim_angles_to_coords(r)
-        TOL = [C_XYZ[0] - target[0], C_XYZ[1] - target[1], C_XYZ[2] - target[2]]
+        C_XYZ = self.sim_angles_to_coords(r)
+        TOL = [ (C_XYZ[0] - target[0]).round(4), 
+                (C_XYZ[1] - target[1]).round(4),
+                (C_XYZ[2] - target[2]).round(4) ]
       
         return r.round(3), TOL
 
@@ -393,7 +399,7 @@ class Robot():
 # MAIN
 if __name__ == '__main__':
      
-
+    '''
     target = np.array([335.6, -10., -92.96])
 
     #use previous angles for previous point as guess to achieve shortest change in angles
@@ -421,17 +427,17 @@ if __name__ == '__main__':
             while(True):
                 #robot.goto_abs_multi_loop_angles_speeds([alpha, fi, theta],    [30, 30, 40])
 
-                '''
-                print("Set angles as ZERO positions? Y=yes")
-                inp = input().upper()
-                if (inp == "Y"):
-                    #save zero positions for axes
-                    m1.set_zero_cur_position()
-                    m2.set_zero_cur_position()
-                    m3.set_zero_cur_position()
-                    print("RESET POWER!")
-                    exit()
-                '''
+                
+                #print("Set angles as ZERO positions? Y=yes")
+                #inp = input().upper()
+                #if (inp == "Y"):
+                #    #save zero positions for axes
+                #    m1.set_zero_cur_position()
+                #    m2.set_zero_cur_position()
+                #    m3.set_zero_cur_position()
+                #    print("RESET POWER!")
+                #    exit()
+                
                 
 
                 print("Enter alpha fi theta angles Ex.: 4.0 -11 4")
@@ -467,4 +473,6 @@ if __name__ == '__main__':
 
     else:
         print("cannot open serial port")
+    '''
+    pass
 
