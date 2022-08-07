@@ -11,7 +11,7 @@ CMD_HEADER                     = 0x3E
 CMD_ASK_MULTI_LOOP_ANGLE       = 0x92        #Read multi -loop Angle command
 CMD_ASK_SINGLE_LOOP_ANGLE      = 0x94        #Read single -loop Angle command
 CMD_ABS_MULTI_LOOP_ANGLE_SPEED = 0xA4        #MULTI ROTATION ABS ANGLE Multi position closed loop control command 2
-CMD_ABS_ANGLE_SPEED            = 0xA6        #Single position closed loop control command 2
+CMD_ABS_SINGLE_ANGLE_SPEED     = 0xA6        #Single position closed loop control command 2 Angle 0...359.99 deg Rotation direction is set by outside
 CMD_INC_ANGLE_SPEED            = 0xA8        #INCREMENT angle with speed
 CMD_SET_ZERO                   = 0x19        #Set current poosition as zero for driver
 CMD_MOTOR_SHUTDOWN             = 0x80        #MOTOR stop (but power on coils will keep?)
@@ -24,7 +24,7 @@ def time_of_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
         res = function(*args)
-        print((time.perf_counter_ns() - start_time) / 10**6, "millisec")
+        print("Time of function", (time.perf_counter_ns() - start_time) / 10**6, "millisec")
         return res
     return wrapped
 
@@ -34,6 +34,7 @@ class Motor():
     id: hex                        = 0x00
     name: str                      = None
     __cur_multi_loop_angle: float    = 0.0
+    __cur_single_loop_angle: float   = 0.0
     
     tolerance: float               = 0.1 #deg. Used for different operatins like wait_stop Must be > 0.01!
 
@@ -83,6 +84,46 @@ class Motor():
         self.serial_port.write(snd)        
         res = self.__read_responce(26)      #wait 26 bytes
 
+    # Single position closed loop control command 1 Single position closed loop control command 1 
+    # Angle 0...359.99 deg 
+    # Rotation direction is set by outside
+    def abs_single_loop_angle_speed(self, angle: float, speed: float, CW: bool):
+
+        if angle == 360.0: angle = 0
+
+        assert speed > 0, "Speed must be grater than zero"
+        assert angle >= 0.0, f"Angle must be grather or equal zero {angle}"
+        assert angle < 360, f"Angle must be less 360 deg Angle is {angle}"
+        
+
+        if not self.serial_port == None:
+            data_length = 0x08
+            
+            header_crc  = (CMD_HEADER + CMD_ABS_SINGLE_ANGLE_SPEED + self.id + data_length) % 256
+
+            angle       = int(angle * 100)
+            speed       = int(speed * 100)    #according documentaton
+            
+            if  CW: 
+                r_dir = 0x00 
+            else: 
+                r_dir = 0x01
+
+            data        = pack('<BHBi', r_dir, angle, 0x00, speed)
+            data_crc    = sum(data) % 256
+
+            snd = bytearray(pack('<BBBBBBHBiB', CMD_HEADER, CMD_ABS_SINGLE_ANGLE_SPEED, self.id, data_length, header_crc, r_dir, angle, 0x00, speed, data_crc))
+            
+            
+            self.serial_port.write(snd)
+
+            res = self.__read_responce(13)      #wait 13 bytes
+        else:  #if no serial port than simulate
+            res = 1
+            self.__cur_single_loop_angle = angle
+
+        return res
+    # motor rotation direction is determined by the difference between the target position and the current position
     def abs_multi_loop_angle_speed(self, angle: float, speed: float):
         assert speed > 0, "Speed must be grater than zero"
         
@@ -138,33 +179,37 @@ class Motor():
         return res
 
     # 0 ... 365.99 deg
-    #NB! simulation when serial port is not set is not implemented!
     def get_single_loop_angle(self):
-        header_crc = (CMD_HEADER + CMD_ASK_SINGLE_LOOP_ANGLE + self.id + 0x00) % 256
-        r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_SINGLE_LOOP_ANGLE, self.id, 0x00, header_crc))
+        if self.serial_port == None:
+            pass
+        else:        
+            header_crc = (CMD_HEADER + CMD_ASK_SINGLE_LOOP_ANGLE + self.id + 0x00) % 256
+            r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_SINGLE_LOOP_ANGLE, self.id, 0x00, header_crc))
 
-        self.serial_port.write(r)
+            self.serial_port.write(r)
 
-        #GET RESPONCE FROM MOTOR
-        #TODO add motor ID check
+            #GET RESPONCE FROM MOTOR
+            #TODO add motor ID check
 
-        time.sleep(.01)  #give the serial port sometime to receive the data
-        res = self.__read_responce(8)
+            time.sleep(.01)  #give the serial port sometime to receive the data
+            res = self.__read_responce(8)
 
-        b = bytearray()
-        b.append(res[5])
-        b.append(res[6])
-        
-        angle = unpack("H", b)
+            b = bytearray()
+            b.append(res[5])
+            b.append(res[6])
+            
+            angle = unpack("H", b)
 
-        r_angle = float(angle[0]/100)        
-        #if not self.CW:  r_angle = -1 * r_angle
+            self.__cur_single_loop_angle = float(angle[0]/100)
 
-        return r_angle
+        return self.__cur_single_loop_angle
 
     # 0 ... INF deg
     def get_multi_loop_angle(self):
-        if not self.serial_port == None:
+        if self.serial_port == None:
+            pass
+        else:
+
             header_crc = (CMD_HEADER + CMD_ASK_MULTI_LOOP_ANGLE + self.id + 0x00) % 256
             r = bytearray(pack('BBBBB', CMD_HEADER, CMD_ASK_MULTI_LOOP_ANGLE, self.id, 0x00, header_crc))
 
@@ -172,20 +217,19 @@ class Motor():
 
             #GET RESPONCE FROM MOTOR
             #TODO add motor ID check
-
             res = self.__read_responce(14)
             
             angle = unpack("HHHH", res[5:13])
             
             #update value beore return
-            self.__cur_multi_loop_angle = float(angle[0]/100)        
-            #if not self.CW:  r_angle = -1 * r_angle
+            self.__cur_multi_loop_angle = float(angle[0]/100)
+       
 
         return self.__cur_multi_loop_angle
 
     #blocks code execution till motor stop (angle do not change because of ANY reason)
     #tolerance to detect angle similarity,  request_period to reduce ammout of requests
-    def wait_stop(self, request_period: float, timeout: float):
+    def wait_stop(self, request_period: float = 0.1, timeout: float = 15):
         prev_value  = 9999999
         start       = time.time()
 
@@ -194,7 +238,7 @@ class Motor():
 
         while (time.time() - start < timeout):
             cur_multi_loop_angle   = self.get_multi_loop_angle()
-            delta                       = abs(prev_value - cur_multi_loop_angle)
+            delta                  = abs(prev_value - cur_multi_loop_angle)
             
             if (delta < self.tolerance): return
 
@@ -278,12 +322,14 @@ class Robot():
     def motors_count (self):
         return len(self.__motors)
 
-    def goto_zero(self, speed: float):
+    def goto_zero(self, speed: float = 15):
         for motor in self.__motors:
             motor.abs_multi_loop_angle_speed(0, speed)
         self.wait_stop()
 
+    # Will rotate each motor to reach angle with multiturn (multiloop). No direction selection. I.e 1 deg -> 355deg will run whole loop
     def goto_abs_multi_loop_angles_speeds(self, angles: list, speeds: list):
+
         assert len(angles) == len(speeds) == len(self.__motors), "Ammout of motors, speeds and angles must be same"
 
         for motor, angle, speed in zip(self.__motors, angles, speeds):
@@ -296,19 +342,38 @@ class Robot():
             motor.abs_multi_loop_angle_speed(angle, speed)
         self.wait_stop()
 
+    def goto_abs_single_loop_angles_speeds(self, angles: list, speeds: list, dirs: list):
+        assert len(angles) == len(speeds) == len(dirs) == len(self.__motors), "Ammout of motors, speeds and angles and directions must be same"
+
+        for motor, angle, speed, dir in zip(self.__motors, angles, speeds, dirs):
+            try:
+                angle = float(angle)
+                speed = float(speed)
+                dir   = bool(dir)
+            except ValueError as e:
+                print("Error in robot.goto_abs_single_loop_angles_speeds", str(e))
+                exit()
+            motor.abs_single_loop_angle_speed(angle, speed, dir)
+        self.wait_stop()
+
     #blocks code execution till ALL motors stop (angle do not change because of ANY reason)
     #tolerance to detect angle similarity,  request_period to reduce ammout of requests
-    def wait_stop(self, request_period: float = 0.1, motor_timeout: float = 15):
-        for motor in self.__motors:
-            motor.wait_stop(request_period, motor_timeout)
+    def wait_stop(self, request_period: float = 0.1, motor_timeout: float = 20):
+        for motor in self.__motors: motor.wait_stop(request_period, motor_timeout)
 
     def get_multi_loop_angles(self):
         results = list()
 
-        for motor in self.__motors:
-            results.append(motor.get_multi_loop_angle())
+        for motor in self.__motors: results.append(motor.get_multi_loop_angle())
         
         return results
+
+    def get_single_loop_angles(self):
+        results = list()
+
+        for motor in self.__motors: results.append(motor.get_single_loop_angle())
+        
+        return results        
 
     # Calculates coordinates usng angles
     def sim_angles_to_coords(self, angles: np.array) -> np.array:
@@ -337,6 +402,11 @@ class Robot():
     # Calculates chains angles using from target XYZ coordinates
     #@time_of_function
     def sim_coords_to_angles(self, target: np.array, guess: np.array): # -> np.array, np.array:
+        def is_dir_cw(s_angle, e_angle):
+            delta = e_angle - s_angle
+            if delta < 0: delta = 360 + delta
+            return (True if (delta < 180) else False)
+
         def jacobian(f, x: np.array, h = 0.01):
             n   = len(x)
             Jac = np.zeros([n,n])
@@ -374,26 +444,37 @@ class Robot():
         
         #guess is angles
         r, iter = newton(f, guess)
+         
+        # TODO: this area sould be reconsidered for linear axises
+
+        dirs = list()
+        angles = list()
     
-      
-        # this area sould be reconsidered for linear axises
-        r[0] = r[0] - int(r[0] / 360) * 360  #Reduce angles to range +/- 360 deg or U get > 360 deg
-        r[1] = r[1] - int(r[1] / 360) * 360
-        r[2] = r[2] - int(r[2] / 360) * 360
-        
+        for a, g in zip(r, guess):
+            new_a = a - int(a / 360) * 360  #Reduce angles to range +/- 360 deg or U get > 360 deg    Means remove multiturns
+            
+            new_a = round(new_a, 4)
+            if new_a == 360 : new_a = 0   #fix jams when after round it is 360 deg and passed functions which acceprt up to 359.99
+
+            if new_a < 0: new_a = 360 + new_a   #Make angle positive
+
+            # Directions To make rotations shortest
+            # example: was 10 deg. We go to 358 deg => CCW was 10 deg go to 180 => CW
+            dirs.append(is_dir_cw(g, new_a))
+            angles.append(round(new_a))
 
         #result and tolerance
 
-        C_XYZ = self.sim_angles_to_coords(r)
+        C_XYZ = self.sim_angles_to_coords(angles)
         TOL = [ (C_XYZ[0] - target[0]).round(4), 
                 (C_XYZ[1] - target[1]).round(4),
                 (C_XYZ[2] - target[2]).round(4) ]
       
-        return r.round(3), TOL
+        return angles, TOL, dirs
 
     def get_coords(self) -> np.array:
-        return self.sim_angles_to_coords(self.get_multi_loop_angles())
-
+        angles = self.get_single_loop_angles()
+        return self.sim_angles_to_coords(angles)
     
 
 # MAIN

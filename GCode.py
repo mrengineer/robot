@@ -1,10 +1,15 @@
 import logging
-import re, os
+import re, os, json
 from trace import Trace
+from turtle import delay
 import numpy as np
 from parso import split_lines
-import robot
+from robot import Robot, Motor, time_of_function
 
+
+# API for web UI
+import asyncio
+import websockets
 
 logging.basicConfig(format='%(asctime)s %(name)s - %(levelname)s: %(message)s')
 
@@ -15,14 +20,13 @@ g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
 clean_pattern = re.compile('\s+|\(.*?\)|;.*')
 
 class GInterpreter():
-    robot: robot.Robot
+    robot: Robot
     _GCode = list()
-    __is_run = False
-
+    
 
     def __init__(self, port_name: str) -> None:
         assert len(port_name) >= 3, "Incorrect portname"        
-        self.robot = robot.Robot(port_name)
+        self.robot = Robot(port_name)
 
 
     @property
@@ -33,12 +37,11 @@ class GInterpreter():
     def code(self, value: str):
         self._GCode = split_lines(value)
 
+    
     def step(self):
         start_coords = self.robot.get_coords()
 
-        X = start_coords[0]
-        Y = start_coords[1]
-        Z = start_coords[2]
+        X, Y, Z = start_coords[0], start_coords[1], start_coords[2]
 
         S = 0.0
         T = 0
@@ -47,8 +50,7 @@ class GInterpreter():
         
         #Use previous angles for correct angles calculation. At first step they are all zeros
         
-        #guess = np.zeros([self.robot.motors_count])
-        guess = self.robot.get_multi_loop_angles()
+        guess = self.robot.get_single_loop_angles()
 
         for code_line in self._GCode:
             code_line = code_line.strip()
@@ -80,26 +82,26 @@ class GInterpreter():
             if 'G' in params and 'M' in params:
                 raise Exception('G and M command found')
             
-            print(code_line, "->", params)
+            #print(code_line, "->", params)
             
-            
+            print(code_line)
 
             X, Y, Z, T, S, F, Abs = self.do_step(params, X, Y, Z, T, S, F, Abs)
 
             target = np.array([X, Y, Z])
 
-            #use previous angles for previous point as guess to achieve shortest change in angles
+            #use previous angles for previous point as guess to achieve shortest change in angles            
+
+            angles, tol, dirs = self.robot.sim_coords_to_angles(target, guess)
+            speeds = [70] * self.robot.motors_count
             
-            print("GUESS", guess)
-            print("TARGET", target, "\n")
+            print("Angles", angles, "speeds", speeds, "dirs", dirs, "target", target, "\n\n")
 
-            res = self.robot.sim_coords_to_angles(target, guess)
-            guess = res[0]
+            self.robot.goto_abs_single_loop_angles_speeds(angles, speeds, dirs)
+            guess = angles
 
-            print("Res angles [angles], [coord tolerances]\n", res)
-            yield X, Y, Z
-            
-
+            #print("Res angles [angles], [coord tolerances]:", res)
+            yield X, Y, Z           
 
     def do_step(self, params, X: float, Y: float, Z: float, T: int, S: float, F: float, Abs: bool):
         if "T" in params: T =   int(params["T"])
@@ -184,23 +186,38 @@ class GInterpreter():
 
         return X, Y, Z, T, S, F, Abs
 
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
-def main():
+async def handler(websocket, path):
+    while True:
+        data = await websocket.recv()
+        
+        reply = f"Data recieved as:  {data}!, path = {path}"
+        print("WS!!!!", reply)
+
+        await websocket.send(reply)
+
+
+async def main():
+       
     GInt = GInterpreter("ttyUSB0")
 
-    m1 = GInt.robot.add_motor(0x01, 0.1, "X", False, [112.2, -45, 0],  "YZ")
-    m2 = GInt.robot.add_motor(0x02, 0.1, "Y1", False, [126, 53, 0], "XZ")
-    m3 = GInt.robot.add_motor(0x03, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
-           
+    m1: Motor = GInt.robot.add_motor(0x01, 0.1, "X",  False, [112.2, -45, 0],  "YZ")
+    m2: Motor = GInt.robot.add_motor(0x02, 0.1, "Y1", False, [126, 53, 0], "XZ")
+    m3: Motor = GInt.robot.add_motor(0x03, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
     
-    GInt.code = """%
-    ( Данная управляющая программа для станков с ЧПУ создана )
-    ( Файл создан:  2022-07-17  01:27:15  )
+    GInt.robot.goto_zero()
+   
 
-    N010 G00 Z0.5 F70
-    N020 G00 X340 Y-26 F70
+
+    GInt.code = """%
+    ( File created:  2022-07-17  01:27:15  )
+
+    N010 G00 X343 F70
+    N020 G00 X340.2 Y-26 F70
     N030 G01 Z-1 F50
-    N040 G01 X5 Y35 F50
+    N040 G01 Z1 F50
     N050 G01 X35 Y15
     N060 G01 X5 Y15
     N070 G00 Z0.5 F70
@@ -208,20 +225,23 @@ def main():
     N090 M30
     %"""
 
+    #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
+
+
     g = GInt.step()
     res = next(g)
-    print("res", res)
-
-    print("---------------------------------------\n\n\n")
-
     res = next(g)
-    print("res", res)
-
-    print("---------------------------------------\n\n\n")
-
     res = next(g)
-    print("res", res)
+    res = next(g)
+
 
 if __name__ == '__main__':
     os.system('clear')
-    main()
+
+    start_server =  websockets.serve(handler, "localhost", 8000)
+    asyncio.get_event_loop().run_until_complete(start_server)
+
+    main_task = asyncio.get_event_loop().create_task(main())
+    asyncio.get_event_loop().run_until_complete(main_task)
+
+    #asyncio.get_event_loop().run_forever()
