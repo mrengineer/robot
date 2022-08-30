@@ -3,7 +3,7 @@ import math
 import time, sys, os
 from struct import *
 import numpy as np
-import serial
+import serial, json
 
 
 
@@ -294,6 +294,7 @@ class Motor():
 class Robot():
     __motors = list()
     __port: serial.Serial = None    #if sumulation, serial port is not assigned
+    coords = "NO"
 
     def __init__(self, port_name: str) -> None:
         try:
@@ -475,7 +476,9 @@ class Robot():
     def get_coords(self) -> np.array:
         angles = self.get_single_loop_angles()
         return self.sim_angles_to_coords(angles)
-    
+
+    def toJSON(self):
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)    
 
 # MAIN
 if __name__ == '__main__':

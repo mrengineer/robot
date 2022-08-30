@@ -1,15 +1,21 @@
+from ast import Try
 import logging
 import re, os, json
-from trace import Trace
+import asyncio
 from turtle import delay
 import numpy as np
 from parso import split_lines
+import time, datetime
 from robot import Robot, Motor, time_of_function
 
 
 # API for web UI
 import asyncio
-import websockets
+import websockets  #https://websockets.readthedocs.io/en/5.0/intro.html
+from websockets import server
+
+wsockets = list()
+
 
 logging.basicConfig(format='%(asctime)s %(name)s - %(levelname)s: %(message)s')
 
@@ -19,15 +25,15 @@ g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
 # white spaces and comments start with ';' and in '()'
 clean_pattern = re.compile('\s+|\(.*?\)|;.*')
 
+
 class GInterpreter():
     robot: Robot
     _GCode = list()
-    
+    active_line = "No active line of G-code"
 
     def __init__(self, port_name: str) -> None:
         assert len(port_name) >= 3, "Incorrect portname"        
         self.robot = Robot(port_name)
-
 
     @property
     def code(self):
@@ -84,7 +90,7 @@ class GInterpreter():
             
             #print(code_line, "->", params)
             
-            print(code_line)
+            self.active_line = code_line
 
             X, Y, Z, T, S, F, Abs = self.do_step(params, X, Y, Z, T, S, F, Abs)
 
@@ -101,6 +107,7 @@ class GInterpreter():
             guess = angles
 
             #print("Res angles [angles], [coord tolerances]:", res)
+            
             yield X, Y, Z           
 
     def do_step(self, params, X: float, Y: float, Z: float, T: int, S: float, F: float, Abs: bool):
@@ -189,19 +196,27 @@ class GInterpreter():
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
-async def handler(websocket, path):
-    while True:
-        data = await websocket.recv()
-        
-        reply = f"Data recieved as:  {data}!, path = {path}"
-        print("WS!!!!", reply)
 
-        await websocket.send(reply)
+async def handler(websocket, path):
+
+    #r = dir(websocket)
+    wsockets.append(websocket)
+
+    #for e in r:
+    #    print(e)
+
+    try:
+        while(True):
+            name = await websocket.recv()
+            print(f"RX {name}")
+    except:     #on socket close
+        wsockets.remove(websocket)
+
 
 
 async def main():
-       
-    GInt = GInterpreter("ttyUSB0")
+    print("Starting main")
+    GInt: GInterpreter = GInterpreter("ttyUSB0")
 
     m1: Motor = GInt.robot.add_motor(0x01, 0.1, "X",  False, [112.2, -45, 0],  "YZ")
     m2: Motor = GInt.robot.add_motor(0x02, 0.1, "Y1", False, [126, 53, 0], "XZ")
@@ -209,7 +224,6 @@ async def main():
     
     GInt.robot.goto_zero()
    
-
 
     GInt.code = """%
     ( File created:  2022-07-17  01:27:15  )
@@ -227,21 +241,40 @@ async def main():
 
     #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
 
-
+    await asyncio.sleep(3)
+    
     g = GInt.step()
+
+    for s in wsockets:
+        if s.open: await s.send(GInt.toJSON())
+
     res = next(g)
+    for s in wsockets:
+        if s.open: await s.send(GInt.toJSON())
+
     res = next(g)
+    for s in wsockets:
+        if s.open: await s.send(GInt.toJSON())    
     res = next(g)
+    for s in wsockets:
+        if s.open: await s.send(GInt.toJSON())    
     res = next(g)
+    for s in wsockets:
+        if s.open: await s.send(GInt.toJSON())
+
+    while(1):
+        await asyncio.sleep(1)
+        for s in wsockets: 
+            if s.open: await s.send(GInt.toJSON())
 
 
 if __name__ == '__main__':
-    os.system('clear')
-
-    start_server =  websockets.serve(handler, "localhost", 8000)
-    asyncio.get_event_loop().run_until_complete(start_server)
-
-    main_task = asyncio.get_event_loop().create_task(main())
-    asyncio.get_event_loop().run_until_complete(main_task)
-
-    #asyncio.get_event_loop().run_forever()
+    os.system('clear')    
+    
+    print("Starting server")
+    serv = websockets.serve(handler, 'localhost', 8000)
+    
+    asyncio.get_event_loop().run_until_complete(serv)
+    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.get_event_loop().run_forever()
+    
