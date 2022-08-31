@@ -1,12 +1,13 @@
 from ast import Try
 import logging
 import re, os, json
+from json import JSONEncoder
 import asyncio
 from turtle import delay
 import numpy as np
 from parso import split_lines
 import time, datetime
-from robot import Robot, Motor, time_of_function
+from robot import Robot, Motor, time_of_function, Serializer
 
 
 # API for web UI
@@ -26,10 +27,10 @@ g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
 clean_pattern = re.compile('\s+|\(.*?\)|;.*')
 
 
-class GInterpreter():
+class GInterpreter(Serializer):
     robot: Robot
     _GCode = list()
-    active_line = "No active line of G-code"
+    active_line = "No active line of G-code" #Line for/in execution
 
     def __init__(self, port_name: str) -> None:
         assert len(port_name) >= 3, "Incorrect portname"        
@@ -90,7 +91,7 @@ class GInterpreter():
             
             #print(code_line, "->", params)
             
-            self.active_line = code_line
+            self._active_line = code_line
 
             X, Y, Z, T, S, F, Abs = self.do_step(params, X, Y, Z, T, S, F, Abs)
 
@@ -193,17 +194,14 @@ class GInterpreter():
 
         return X, Y, Z, T, S, F, Abs
 
-    def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+    #def toJSON(self):
+    #    enc = ClassEncoder().encode(self)
+    #    return json.dumps(enc, sort_keys=True, indent=4)
+
 
 
 async def handler(websocket, path):
-
-    #r = dir(websocket)
     wsockets.append(websocket)
-
-    #for e in r:
-    #    print(e)
 
     try:
         while(True):
@@ -241,31 +239,31 @@ async def main():
 
     #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
 
-    await asyncio.sleep(3)
+    await asyncio.sleep(1)
     
     g = GInt.step()
 
     for s in wsockets:
-        if s.open: await s.send(GInt.toJSON())
+        if s.open: await s.send(GInt.json_serialize())
 
     res = next(g)
     for s in wsockets:
-        if s.open: await s.send(GInt.toJSON())
+        if s.open: await s.send(GInt.json_serialize())
 
     res = next(g)
     for s in wsockets:
-        if s.open: await s.send(GInt.toJSON())    
+        if s.open: await s.send(GInt.json_serialize())
     res = next(g)
     for s in wsockets:
-        if s.open: await s.send(GInt.toJSON())    
+        if s.open: await s.send(GInt.json_serialize())
     res = next(g)
     for s in wsockets:
-        if s.open: await s.send(GInt.toJSON())
+        if s.open: await s.send(GInt.json_serialize())
 
     while(1):
         await asyncio.sleep(1)
-        for s in wsockets: 
-            if s.open: await s.send(GInt.toJSON())
+        for s in wsockets:
+            if s.open: await s.send(GInt.json_serialize())
 
 
 if __name__ == '__main__':

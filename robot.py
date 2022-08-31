@@ -20,6 +20,27 @@ CMD_MOTOR_START                = 0x88        #MOTOR operation
 CMD_MOTOR_MODEL                = 0x12        #Read driver and motor model commands
 
 
+class Serializer():
+    def serialize(self):
+        members = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("_")]
+
+        ret_dict = {}
+
+        for member in members:
+            m_name = str(member)
+            m_value = getattr(self, member)
+
+            if hasattr(m_value, 'serialize'):
+                ret_dict[m_name] = m_value.serialize()
+            else:
+                ret_dict[m_name] = getattr(self, member)
+        
+        return ret_dict
+
+    def json_serialize(self):
+        return json.dumps(self.serialize(), sort_keys=True, indent=4)
+
+
 def time_of_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
@@ -291,7 +312,7 @@ class Motor():
         
         return np.matmul(Ta, Ts)         
 
-class Robot():
+class Robot(Serializer):
     __motors = list()
     __port: serial.Serial = None    #if sumulation, serial port is not assigned
     coords = "NO"
@@ -476,9 +497,6 @@ class Robot():
     def get_coords(self) -> np.array:
         angles = self.get_single_loop_angles()
         return self.sim_angles_to_coords(angles)
-
-    def toJSON(self):
-        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)    
 
 # MAIN
 if __name__ == '__main__':
