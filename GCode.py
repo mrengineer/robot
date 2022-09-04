@@ -4,9 +4,12 @@ import re, os, json
 from json import JSONEncoder
 import asyncio
 from turtle import delay
+from construct import Int
 import numpy as np
 from parso import split_lines
 import time, datetime
+
+from traitlets import Integer
 from robot import Robot, Motor, time_of_function, Serializer
 
 
@@ -16,7 +19,6 @@ import websockets  #https://websockets.readthedocs.io/en/5.0/intro.html
 from websockets import server
 
 wsockets = list()
-
 
 logging.basicConfig(format='%(asctime)s %(name)s - %(levelname)s: %(message)s')
 
@@ -30,18 +32,30 @@ clean_pattern = re.compile('\s+|\(.*?\)|;.*')
 class GInterpreter(Serializer):
     robot: Robot
     _GCode = list()
-    active_line = "No active line of G-code" #Line for/in execution
+    _active_line: Integer = 0 #Line for/in execution
+
 
     def __init__(self, port_name: str) -> None:
         assert len(port_name) >= 3, "Incorrect portname"        
         self.robot = Robot(port_name)
+        self._active_line = 0
 
     @property
     def code(self):
         return self._GCode
 
+    @property
+    def active_line(self):
+        return self._active_line
+
+    @property
+    def lines_count(self):
+        return self.code.count
+
+
     @code.setter
     def code(self, value: str):
+        self._active_line = 0
         self._GCode = split_lines(value)
 
     
@@ -59,7 +73,12 @@ class GInterpreter(Serializer):
         
         guess = self.robot.get_single_loop_angles()
 
+        self._lines_count = self._GCode.count
+        self._active_line = 0
+
         for code_line in self._GCode:
+            self._active_line = self._active_line + 1
+
             code_line = code_line.strip()
             line = code_line.upper()
             line = re.sub(clean_pattern, '', line)
@@ -89,9 +108,8 @@ class GInterpreter(Serializer):
             if 'G' in params and 'M' in params:
                 raise Exception('G and M command found')
             
-            #print(code_line, "->", params)
-            
-            self._active_line = code_line
+                       
+            #self._active_line = code_line
 
             X, Y, Z, T, S, F, Abs = self.do_step(params, X, Y, Z, T, S, F, Abs)
 
@@ -193,11 +211,6 @@ class GInterpreter(Serializer):
             raise Exception(f"There is no G or M code in line or some another error in line interpretation")
 
         return X, Y, Z, T, S, F, Abs
-
-    #def toJSON(self):
-    #    enc = ClassEncoder().encode(self)
-    #    return json.dumps(enc, sort_keys=True, indent=4)
-
 
 
 async def handler(websocket, path):

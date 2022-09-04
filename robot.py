@@ -40,7 +40,6 @@ class Serializer():
     def json_serialize(self):
         return json.dumps(self.serialize(), sort_keys=True, indent=4)
 
-
 def time_of_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
@@ -48,7 +47,6 @@ def time_of_function(function):
         print("Time of function", (time.perf_counter_ns() - start_time) / 10**6, "millisec")
         return res
     return wrapped
-
 
 class Motor():
     serial_port                    = None
