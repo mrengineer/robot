@@ -50,7 +50,7 @@ class GInterpreter(Serializer):
 
     @property
     def lines_count(self):
-        return self.code.count
+        return len(self._GCode)
 
 
     @code.setter
@@ -215,6 +215,7 @@ class GInterpreter(Serializer):
 
 async def handler(websocket, path):
     wsockets.append(websocket)
+    
 
     try:
         while(True):
@@ -252,17 +253,19 @@ async def main():
 
     #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(2)
     
     g = GInt.step()
 
     for s in wsockets:
         if s.open: await s.send(GInt.json_serialize())
 
+    await asyncio.sleep(2)
     res = next(g)
     for s in wsockets:
         if s.open: await s.send(GInt.json_serialize())
 
+    await asyncio.sleep(2)
     res = next(g)
     for s in wsockets:
         if s.open: await s.send(GInt.json_serialize())
@@ -274,9 +277,9 @@ async def main():
         if s.open: await s.send(GInt.json_serialize())
 
     while(1):
-        await asyncio.sleep(1)
-        for s in wsockets:
-            if s.open: await s.send(GInt.json_serialize())
+        await asyncio.sleep(5)
+        #for s in wsockets:
+        #    if s.open: await s.send(GInt.json_serialize())
 
 
 if __name__ == '__main__':
