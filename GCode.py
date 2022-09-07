@@ -22,6 +22,13 @@ wsockets = list()
 
 logging.basicConfig(format='%(asctime)s %(name)s - %(levelname)s: %(message)s')
 
+STATE_STOP = 0
+STATE_RUN = 1
+STATE_STEP = 2
+STATE_PAUSE = 3
+
+
+
 # extract letter-digit pairs
 g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
 
@@ -33,6 +40,7 @@ class GInterpreter(Serializer):
     robot: Robot
     _GCode = list()
     _active_line: Integer = 0 #Line for/in execution
+    _state: Integer = 0  #0 - stop, 1 - run, 2 - step, 3 - pause
 
 
     def __init__(self, port_name: str) -> None:
@@ -52,11 +60,26 @@ class GInterpreter(Serializer):
     def lines_count(self):
         return len(self._GCode)
 
+    @property
+    def progress(self):
+        return round(100 * self._active_line / len(self._GCode))
 
     @code.setter
     def code(self, value: str):
         self._active_line = 0
         self._GCode = split_lines(value)
+        #UI_update(self)
+
+    # Stop and reset
+    def stop(self):
+        self._state = STATE_STOP
+        self._active_line = 0
+        UI_update(self)
+
+    # Continious run
+    def run(self):
+        self._state = STATE_RUN
+        UI_update(self)
 
     
     def step(self):
@@ -127,6 +150,7 @@ class GInterpreter(Serializer):
 
             #print("Res angles [angles], [coord tolerances]:", res)
             
+            #UI_update(self)
             yield X, Y, Z           
 
     def do_step(self, params, X: float, Y: float, Z: float, T: int, S: float, F: float, Abs: bool):
@@ -212,24 +236,33 @@ class GInterpreter(Serializer):
 
         return X, Y, Z, T, S, F, Abs
 
+GInt: GInterpreter = GInterpreter("ttyUSB0")
+
+
+def UI_update(GIntObj: GInterpreter):
+    for s in wsockets:  
+        if s.open: s.send(GInt.json_serialize())
 
 async def handler(websocket, path):
     wsockets.append(websocket)
-    
 
     try:
         while(True):
-            name = await websocket.recv()
-            print(f"RX {name}")
+            rx = await websocket.recv()
+            print(f"RX {rx}")
+            rx = rx.strip().upper()
+
+            if rx == "CMD_STOP":    GInt.stop()
+            if rx == "CMD_RUN":     GInt.run()
+            
+
     except:     #on socket close
         wsockets.remove(websocket)
 
 
 
 async def main():
-    print("Starting main")
-    GInt: GInterpreter = GInterpreter("ttyUSB0")
-
+ 
     m1: Motor = GInt.robot.add_motor(0x01, 0.1, "X",  False, [112.2, -45, 0],  "YZ")
     m2: Motor = GInt.robot.add_motor(0x02, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3: Motor = GInt.robot.add_motor(0x03, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
@@ -250,6 +283,7 @@ async def main():
     N080 G00 X0 Y0 F70
     N090 M30
     %"""
+    
 
     #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
 
@@ -257,29 +291,21 @@ async def main():
     
     g = GInt.step()
 
-    for s in wsockets:
-        if s.open: await s.send(GInt.json_serialize())
+    await asyncio.sleep(2)
+    res = next(g)
 
     await asyncio.sleep(2)
     res = next(g)
-    for s in wsockets:
-        if s.open: await s.send(GInt.json_serialize())
 
-    await asyncio.sleep(2)
     res = next(g)
-    for s in wsockets:
-        if s.open: await s.send(GInt.json_serialize())
+
     res = next(g)
-    for s in wsockets:
-        if s.open: await s.send(GInt.json_serialize())
-    res = next(g)
-    for s in wsockets:
-        if s.open: await s.send(GInt.json_serialize())
+
 
     while(1):
         await asyncio.sleep(5)
-        #for s in wsockets:
-        #    if s.open: await s.send(GInt.json_serialize())
+        for s in wsockets:
+            if s.open: await s.send(GInt.json_serialize())
 
 
 if __name__ == '__main__':
