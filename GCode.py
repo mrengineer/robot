@@ -3,6 +3,7 @@ import logging
 import re, os, json
 from json import JSONEncoder
 import asyncio
+from tokenize import String
 from turtle import delay
 from construct import Int
 import numpy as np
@@ -22,12 +23,12 @@ wsockets = list()
 
 logging.basicConfig(format='%(asctime)s %(name)s - %(levelname)s: %(message)s')
 
-STATE_STOP = 0
-STATE_RUN = 1
-STATE_STEP = 2
-STATE_PAUSE = 3
+STATE_STOP  = "STATE_STOP"
+STATE_RUN   = "STATE_RUN"
+STATE_STEP  = "STATE_STEP"
+STATE_PAUSE = "STATE_PAUSE"
 
-
+event = asyncio.Event()  #event flag for UI update
 
 # extract letter-digit pairs
 g_pattern = re.compile('([A-Z])([-+]?[0-9.]+)')
@@ -40,7 +41,7 @@ class GInterpreter(Serializer):
     robot: Robot
     _GCode = list()
     _active_line: Integer = 0 #Line for/in execution
-    _state: Integer = 0  #0 - stop, 1 - run, 2 - step, 3 - pause
+    _state: String = STATE_STOP
 
 
     def __init__(self, port_name: str) -> None:
@@ -57,6 +58,11 @@ class GInterpreter(Serializer):
         return self._active_line
 
     @property
+    def state(self):
+        return self._state
+
+
+    @property
     def lines_count(self):
         return len(self._GCode)
 
@@ -68,21 +74,30 @@ class GInterpreter(Serializer):
     def code(self, value: str):
         self._active_line = 0
         self._GCode = split_lines(value)
-        #UI_update(self)
+        self.stop()
 
     # Stop and reset
     def stop(self):
         self._state = STATE_STOP
         self._active_line = 0
-        UI_update(self)
+        event.set()
 
     # Continious run
     def run(self):
         self._state = STATE_RUN
-        UI_update(self)
+        event.set()
 
-    
-    def step(self):
+    # Just 1 step and go to pause
+    def step (self):
+        self._state = STATE_STEP
+        event.set()
+
+    # Pause
+    def pause(self):
+        self._state = STATE_PAUSE
+        event.set()
+
+    def one_step(self):
         start_coords = self.robot.get_coords()
 
         X, Y, Z = start_coords[0], start_coords[1], start_coords[2]
@@ -150,7 +165,10 @@ class GInterpreter(Serializer):
 
             #print("Res angles [angles], [coord tolerances]:", res)
             
-            #UI_update(self)
+            if self._state == STATE_STEP: 
+                self._state = STATE_PAUSE                
+            event.set()
+            
             yield X, Y, Z           
 
     def do_step(self, params, X: float, Y: float, Z: float, T: int, S: float, F: float, Abs: bool):
@@ -239,12 +257,16 @@ class GInterpreter(Serializer):
 GInt: GInterpreter = GInterpreter("ttyUSB0")
 
 
-def UI_update(GIntObj: GInterpreter):
-    for s in wsockets:  
-        if s.open: s.send(GInt.json_serialize())
+async def event_UI_update(event):
+    while True:        
+        await event.wait()
+        event.clear()
+        for s in wsockets:
+            if s.open: await s.send(GInt.json_serialize())
 
 async def handler(websocket, path):
     wsockets.append(websocket)
+    event.set()
 
     try:
         while(True):
@@ -254,15 +276,18 @@ async def handler(websocket, path):
 
             if rx == "CMD_STOP":    GInt.stop()
             if rx == "CMD_RUN":     GInt.run()
+            if rx == "CMD_PAUSE":   GInt.pause()
+            if rx == "CMD_STEP":    GInt.step()
+
+            event.set()
             
 
     except:     #on socket close
         wsockets.remove(websocket)
 
 
-
 async def main():
- 
+    
     m1: Motor = GInt.robot.add_motor(0x01, 0.1, "X",  False, [112.2, -45, 0],  "YZ")
     m2: Motor = GInt.robot.add_motor(0x02, 0.1, "Y1", False, [126, 53, 0], "XZ")
     m3: Motor = GInt.robot.add_motor(0x03, 0.1, "Y2", False, [105.7, -34, 0], "XZ")
@@ -284,36 +309,34 @@ async def main():
     N090 M30
     %"""
     
+    event_task = asyncio.create_task(event_UI_update(event))
 
     #TODO: Перевести на abs_single_loop_angle_speed и выбирать направление вращения исходя из кратчайшего угла по пути
 
-    await asyncio.sleep(2)
-    
-    g = GInt.step()
+        
+    g = None
+    event.set()
 
-    await asyncio.sleep(2)
-    res = next(g)
+    while (True):
+        await asyncio.sleep(0.001)
+        if GInt._state == STATE_RUN or GInt._state == STATE_STEP:
+            if g == None:
+                g = GInt.one_step()
+            else:
+                next(g)
+        
 
-    await asyncio.sleep(2)
-    res = next(g)
-
-    res = next(g)
-
-    res = next(g)
-
-
-    while(1):
-        await asyncio.sleep(5)
-        for s in wsockets:
-            if s.open: await s.send(GInt.json_serialize())
 
 
 if __name__ == '__main__':
     os.system('clear')    
     
-    print("Starting server")
+    print("Starting server")    
     serv = websockets.serve(handler, 'localhost', 8000)
     
+    #refresh UI on event
+    
+
     asyncio.get_event_loop().run_until_complete(serv)
     asyncio.get_event_loop().run_until_complete(main())
     asyncio.get_event_loop().run_forever()

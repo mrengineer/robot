@@ -54,6 +54,7 @@
                 <button type="button" class="btn btn-warning" onclick="mySocket.send('CMD_PAUSE');"><i class="bi bi-pause-circle"></i> Pause</button>            
                 <button type="button" class="btn btn-danger"  onclick="mySocket.send('CMD_STOP');" ><i class="bi bi-stop-circle"></i></i> Stop</button>
             </div>
+            <span id="state">State is UNKNOWN</span>
 
             <HR>
             <P>G Code 
@@ -104,6 +105,7 @@
         $('#gcode').empty();
         $('#active_line').text(data.active_line);
         $('#lines_count').text(data.lines_count);
+        $('#state').text(data.state);
         $('#progress').width(data.progress + "%").attr('aria-valuenow', data.progress);
 
         var ix = 0;
